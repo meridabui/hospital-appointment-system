@@ -9,6 +9,9 @@ using System.Security.Claims;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.Services.AddDbContext<HospitalAppointmentDbContext>(
+    options => options.UseSqlServer(
+        builder.Configuration.GetConnectionString("DefaultConnection")));
 
 // 1. Database
 builder.Services.AddDbContext<HospitalAppointmentDbContext>(
