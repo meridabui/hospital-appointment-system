@@ -1,0 +1,384 @@
+﻿@page "/login"
+@using HospitalAppointment.Client.Models.Auth
+@using HospitalAppointment.Client.Services
+@using Microsoft.AspNetCore.Components.Forms
+@inject AuthApiService AuthService
+@inject NavigationManager Navigation
+
+<PageTitle>Login - Hospital Appointment</PageTitle>
+
+<div class="login-page">
+    <div class="login-card">
+
+        <div class="login-header">
+            <div class="login-icon">+</div>
+            <h2>Hospital Appointment</h2>
+            <p>Hospital Management System</p>
+        </div>
+
+        @if (AuthService.IsLoggedIn && AuthService.CurrentUser != null)
+        {
+            <div class="logged-in-panel">
+                <div class="success-icon">✓</div>
+
+                <h3>Welcome back!</h3>
+
+                <p>
+                    @AuthService.CurrentUser.FullName
+                </p>
+
+                <div class="user-info">
+                    <div>
+                        <span>Username</span>
+                        <strong>@AuthService.CurrentUser.Username</strong>
+                    </div>
+
+                    <div>
+                        <span>Role</span>
+                        <strong>@AuthService.CurrentUser.Role</strong>
+                    </div>
+                </div>
+
+                @if (AuthService.CurrentUser.Role == "Nurse")
+                {
+                    <button class="login-button"
+                            @onclick="GoToDashboard">
+                        Go to Nurse Dashboard
+                    </button>
+                }
+
+                <button class="logout-button"
+                        @onclick="Logout">
+                    Logout
+                </button>
+            </div>
+        }
+        else
+        {
+            <div class="login-form">
+                <h3>Sign in</h3>
+                <p class="form-description">
+                    Please enter your account information.
+                </p>
+
+                <EditForm Model="@loginRequest"
+                          OnValidSubmit="@HandleLogin">
+
+                    <DataAnnotationsValidator />
+
+                    <div class="form-group">
+                        <label>Username or Email</label>
+
+                        <InputText class="form-input"
+                                   @bind-Value="loginRequest.UsernameOrEmail"
+                                   placeholder="Enter username or email" />
+
+                        <ValidationMessage For="@(() => loginRequest.UsernameOrEmail)" />
+                    </div>
+
+                    <div class="form-group">
+                        <label>Password</label>
+
+                        <InputText class="form-input"
+                                   type="password"
+                                   @bind-Value="loginRequest.Password"
+                                   placeholder="Enter password" />
+
+                        <ValidationMessage For="@(() => loginRequest.Password)" />
+                    </div>
+
+                    @if (!string.IsNullOrWhiteSpace(errorMessage))
+                    {
+                        <div class="error-message">
+                            @errorMessage
+                        </div>
+                    }
+
+                    <button type="submit"
+                            class="login-button"
+                            disabled="@isLoading">
+
+                        @if (isLoading)
+                        {
+                            <span>Signing in...</span>
+                        }
+                        else
+                        {
+                            <span>Sign In</span>
+                        }
+                    </button>
+                </EditForm>
+            </div>
+        }
+
+        <div class="login-footer">
+            © 2026 Hospital Appointment Management System
+        </div>
+
+    </div>
+</div>
+
+<style>
+    .login-page {
+        min-height: 100vh;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        background: #f1f5f9;
+        padding: 24px;
+    }
+
+    .login-card {
+        width: 100%;
+        max-width: 430px;
+        background: white;
+        border-radius: 12px;
+        padding: 36px;
+        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.07);
+    }
+
+    .login-header {
+        text-align: center;
+        margin-bottom: 32px;
+    }
+
+    .login-icon {
+        width: 54px;
+        height: 54px;
+        margin: 0 auto 16px;
+        border-radius: 12px;
+        background: #2563eb;
+        color: white;
+        font-size: 38px;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .login-header h2 {
+        font-size: 23px;
+        font-weight: 700;
+        color: #1e293b;
+        margin-bottom: 6px;
+    }
+
+    .login-header p,
+    .form-description {
+        color: #64748b;
+        font-size: 14px;
+    }
+
+    .login-form h3,
+    .logged-in-panel h3 {
+        font-size: 21px;
+        color: #1e293b;
+        margin-bottom: 8px;
+    }
+
+    .form-group {
+        margin-top: 22px;
+    }
+
+    .form-group label {
+        display: block;
+        font-size: 14px;
+        font-weight: 600;
+        color: #334155;
+        margin-bottom: 8px;
+    }
+
+    .form-input {
+        width: 100%;
+        height: 46px;
+        padding: 0 13px;
+        border: 1px solid #cbd5e1;
+        border-radius: 7px;
+        outline: none;
+        font-size: 14px;
+        box-sizing: border-box;
+    }
+
+    .form-input:focus {
+        border-color: #2563eb;
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+    }
+
+    .validation-message {
+        color: #dc2626;
+        font-size: 12px;
+        margin-top: 5px;
+    }
+
+    .error-message {
+        margin-top: 20px;
+        padding: 12px;
+        border-radius: 7px;
+        background: #fef2f2;
+        color: #b91c1c;
+        font-size: 13px;
+    }
+
+    .login-button {
+        width: 100%;
+        height: 46px;
+        margin-top: 25px;
+        border: none;
+        border-radius: 7px;
+        background: #2563eb;
+        color: white;
+        font-size: 15px;
+        font-weight: 600;
+        cursor: pointer;
+    }
+
+    .login-button:hover {
+        background: #1d4ed8;
+    }
+
+    .login-button:disabled {
+        background: #94a3b8;
+        cursor: not-allowed;
+    }
+
+    .logged-in-panel {
+        text-align: center;
+    }
+
+    .success-icon {
+        width: 48px;
+        height: 48px;
+        margin: 0 auto 16px;
+        border-radius: 50%;
+        background: #dcfce7;
+        color: #15803d;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        font-size: 25px;
+    }
+
+    .user-info {
+        text-align: left;
+        background: #f8fafc;
+        border-radius: 8px;
+        padding: 15px;
+        margin-top: 20px;
+    }
+
+    .user-info div {
+        display: flex;
+        justify-content: space-between;
+        margin: 8px 0;
+        gap: 10px;
+    }
+
+    .user-info span {
+        color: #64748b;
+        font-size: 13px;
+    }
+
+    .user-info strong {
+        color: #1e293b;
+        font-size: 13px;
+    }
+
+    .logout-button {
+        width: 100%;
+        height: 44px;
+        margin-top: 12px;
+        background: white;
+        border: 1px solid #dc2626;
+        border-radius: 7px;
+        color: #dc2626;
+        font-weight: 600;
+        cursor: pointer;
+    }
+
+    .logout-button:hover {
+        background: #fef2f2;
+    }
+
+    .login-footer {
+        margin-top: 30px;
+        text-align: center;
+        color: #94a3b8;
+        font-size: 11px;
+    }
+</style>
+
+@code {
+    private LoginRequestDto loginRequest = new();
+
+    private bool isLoading;
+    private string errorMessage = string.Empty;
+
+    private async Task HandleLogin()
+    {
+        if (isLoading)
+            return;
+
+        isLoading = true;
+        errorMessage = string.Empty;
+
+        try
+        {
+            var user = await AuthService.LoginAsync(loginRequest);
+
+            // Kiểm tra Role
+            if (!string.Equals(
+                user.Role,
+                "Nurse",
+                StringComparison.OrdinalIgnoreCase))
+            {
+                AuthService.Logout();
+
+                errorMessage =
+                    "Access denied. This account does not have Nurse permissions.";
+
+                return;
+            }
+
+            // Đăng nhập thành công, chuyển đến Nurse Dashboard
+            Navigation.NavigateTo("/nurse/dashboard");
+        }
+        catch (UnauthorizedAccessException)
+        {
+            errorMessage = "Invalid username or password.";
+        }
+        catch (HttpRequestException)
+        {
+            errorMessage =
+                "Cannot connect to the server. Please try again.";
+        }
+        catch (Exception)
+        {
+            errorMessage =
+                "An unexpected error occurred. Please try again.";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void GoToDashboard()
+    {
+        if (AuthService.CurrentUser?.Role == "Nurse")
+        {
+            Navigation.NavigateTo("/nurse/dashboard");
+        }
+        else
+        {
+            AuthService.Logout();
+            Navigation.NavigateTo("/login");
+        }
+    }
+
+    private void Logout()
+    {
+        AuthService.Logout();
+        loginRequest = new LoginRequestDto();
+        errorMessage = string.Empty;
+    }
+}

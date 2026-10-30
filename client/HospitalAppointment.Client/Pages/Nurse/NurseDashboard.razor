@@ -1,0 +1,35 @@
+﻿@page "/nurse/dashboard"
+@inject AuthApiService AuthService
+@inject NavigationManager Navigation
+
+<PageTitle>Nurse Dashboard</PageTitle>
+
+<h3>Welcome to Nurse Dashboard</h3>
+
+@if (AuthService.CurrentUser != null)
+{
+    <p>Welcome, @AuthService.CurrentUser.FullName</p>
+    <p>Role: @AuthService.CurrentUser.Role</p>
+}
+
+<button @onclick="Logout">Logout</button>
+
+@code {
+    protected override void OnInitialized()
+    {
+        if (!AuthService.IsLoggedIn ||
+            !string.Equals(
+                AuthService.CurrentUser?.Role,
+                "Nurse",
+                StringComparison.OrdinalIgnoreCase))
+        {
+            Navigation.NavigateTo("/login", true);
+        }
+    }
+
+    private void Logout()
+    {
+        AuthService.Logout();
+        Navigation.NavigateTo("/login", true);
+    }
+}
