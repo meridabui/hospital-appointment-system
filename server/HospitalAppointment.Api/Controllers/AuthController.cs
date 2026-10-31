@@ -1,4 +1,4 @@
-﻿using HospitalAppointment.Api.Data.DTOs.Auth;
+﻿using HospitalAppointment.Api.DTOs.Auth;
 using HospitalAppointment.Api.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;

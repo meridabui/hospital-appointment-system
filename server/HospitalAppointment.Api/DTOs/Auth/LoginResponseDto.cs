@@ -1,4 +1,4 @@
-﻿namespace HospitalAppointment.Api.Data.DTOs.Auth;
+﻿namespace HospitalAppointment.Api.DTOs.Auth;
 
 public class LoginResponseDto
 {

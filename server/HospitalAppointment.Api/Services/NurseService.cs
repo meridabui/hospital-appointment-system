@@ -1,4 +1,4 @@
-﻿using HospitalAppointment.Api.Data.DTOs.Nurse;
+﻿using HospitalAppointment.Api.DTOs.Nurse;
 using HospitalAppointment.Api.Models.Entities;
 using HospitalAppointment.Api.Models.Enums;
 using HospitalAppointment.Api.Repositories;

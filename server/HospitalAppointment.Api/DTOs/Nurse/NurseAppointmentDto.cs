@@ -1,4 +1,4 @@
-﻿namespace HospitalAppointment.Api.Data.DTOs.Nurse;
+﻿namespace HospitalAppointment.Api.DTOs.Nurse;
 
 public class NurseAppointmentDto
 {

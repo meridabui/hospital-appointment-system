@@ -1,4 +1,4 @@
-﻿using HospitalAppointment.Api.Data.DTOs.Auth;
+﻿using HospitalAppointment.Api.DTOs.Auth;
 using HospitalAppointment.Api.Repositories;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;

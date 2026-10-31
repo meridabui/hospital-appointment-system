@@ -1,4 +1,4 @@
-﻿using HospitalAppointment.Api.Data.DTOs.Nurse;
+﻿using HospitalAppointment.Api.DTOs.Nurse;
 
 namespace HospitalAppointment.Api.Services;
 
