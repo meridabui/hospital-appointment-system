@@ -1,4 +1,8 @@
 ﻿@inherits LayoutComponentBase
+@implements IDisposable
+@inject AuthSession Session
+@inject NavigationManager Nav
+
 <div class="page">
     <div class="sidebar">
         <NavMenu />
@@ -6,6 +10,23 @@
 
     <main>
         <div class="top-row px-4">
+            @if (Session.IsAuthenticated)
+            {
+                if (Session.IsInRole("Patient"))
+                {
+                    <NavLink href="book-appointment">Đặt lịch khám</NavLink>
+                }
+
+                <a href="#" @onclick="SignOutAsync" @onclick:preventDefault>
+                    Đăng xuất (@Session.Current!.FullName)
+                </a>
+            }
+            else
+            {
+                <NavLink href="login">Đăng nhập</NavLink>
+                <NavLink href="register">Đăng ký</NavLink>
+            }
+
             <a href="https://learn.microsoft.com/aspnet/core/" target="_blank">About</a>
         </div>
 
@@ -14,3 +35,21 @@
         </article>
     </main>
 </div>
+
+@code {
+    protected override async Task OnInitializedAsync()
+    {
+        Session.Changed += OnSessionChanged;
+        await Session.InitializeAsync();
+    }
+
+    private void OnSessionChanged() => InvokeAsync(StateHasChanged);
+
+    private async Task SignOutAsync()
+    {
+        await Session.SignOutAsync();
+        Nav.NavigateTo("");
+    }
+
+    public void Dispose() => Session.Changed -= OnSessionChanged;
+}
