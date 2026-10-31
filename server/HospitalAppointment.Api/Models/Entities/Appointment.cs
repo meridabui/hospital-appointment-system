@@ -1,4 +1,4 @@
-﻿using HospitalAppointment.Api.Models.Enums;
+using HospitalAppointment.Api.Models.Enums;
 
 namespace HospitalAppointment.Api.Models.Entities;
 
@@ -41,4 +41,44 @@ public class Appointment
     public User? CancelledByUser { get; set; }
     public User? NoShowByUser { get; set; }
     public MedicalRecord? MedicalRecord { get; set; }
+
+    /// <summary>
+    /// Thao tác Check-in theo Class Diagram 3.7.1.1 (Confirmed -> CheckedIn)
+    /// </summary>
+    public void CheckIn(int userId)
+    {
+        if (Status != AppointmentStatus.Confirmed)
+        {
+            throw new InvalidOperationException($"Lịch hẹn không thể check-in vì đang ở trạng thái {Status}.");
+        }
+
+        Status = AppointmentStatus.CheckedIn;
+        CheckedInAt = DateTime.UtcNow;
+        CheckedInBy = userId;
+    }
+
+    /// <summary>
+    /// Kiểm tra điều kiện để đánh dấu No-show theo Class Diagram 3.7.1.1
+    /// </summary>
+    public bool CanMarkAsNoShow()
+    {
+        return Status == AppointmentStatus.Confirmed;
+    }
+
+    /// <summary>
+    /// Thao tác đánh dấu No-show theo Class Diagram 3.7.1.1 (Confirmed -> NoShow)
+    /// </summary>
+    public void MarkAsNoShow(int userId, string? reason = null)
+    {
+        if (!CanMarkAsNoShow())
+        {
+            throw new InvalidOperationException($"Không thể đánh dấu No-show cho lịch hẹn ở trạng thái {Status}.");
+        }
+
+        Status = AppointmentStatus.NoShow;
+        NoShowAt = DateTime.UtcNow;
+        NoShowBy = userId;
+        NoShowReason = reason;
+        IsActiveBooking = false;
+    }
 }
