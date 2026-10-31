@@ -100,6 +100,9 @@ namespace HospitalAppointment.Api.Migrations
                     b.Property<DateTime?>("ReadyAt")
                         .HasColumnType("datetime2");
 
+                    b.Property<int?>("ReadyBy")
+                        .HasColumnType("int");
+
                     b.Property<string>("RejectionReason")
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
@@ -136,6 +139,8 @@ namespace HospitalAppointment.Api.Migrations
                     b.HasIndex("DepartmentId");
 
                     b.HasIndex("NoShowBy");
+
+                    b.HasIndex("ReadyBy");
 
                     b.HasIndex("ScheduleSlotId")
                         .IsUnique()
@@ -852,6 +857,11 @@ namespace HospitalAppointment.Api.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("HospitalAppointment.Api.Models.Entities.User", "ReadyByUser")
+                        .WithMany()
+                        .HasForeignKey("ReadyBy")
+                        .OnDelete(DeleteBehavior.NoAction);
+
                     b.HasOne("HospitalAppointment.Api.Models.Entities.DoctorScheduleSlot", "ScheduleSlot")
                         .WithMany("Appointments")
                         .HasForeignKey("ScheduleSlotId")
@@ -873,6 +883,8 @@ namespace HospitalAppointment.Api.Migrations
                     b.Navigation("NoShowByUser");
 
                     b.Navigation("Patient");
+
+                    b.Navigation("ReadyByUser");
 
                     b.Navigation("ScheduleSlot");
                 });
