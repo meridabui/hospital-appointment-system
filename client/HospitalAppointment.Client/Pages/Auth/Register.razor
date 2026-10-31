@@ -1,0 +1,132 @@
+﻿@page "/register"
+@inject ApiClient Api
+
+<PageTitle>Đăng ký</PageTitle>
+
+<div class="row justify-content-center">
+    <div class="col-md-9 col-lg-7">
+        <h1 class="h3 mb-3">Đăng ký tài khoản bệnh nhân</h1>
+
+        @if (_success != null)
+        {
+            <div class="alert alert-success" role="alert">
+                <p class="mb-1">@_success.Message</p>
+                <p class="mb-2">Mã bệnh nhân của bạn: <strong>@_success.PatientCode</strong></p>
+                <a class="btn btn-success" href="login">Đăng nhập ngay</a>
+            </div>
+        }
+        else
+        {
+            @if (_errors.Count > 0)
+            {
+                <div class="alert alert-danger" role="alert">
+                    <ul class="mb-0">
+                        @foreach (var e in _errors)
+                        {
+                            <li>@e</li>
+                        }
+                    </ul>
+                </div>
+            }
+
+            <EditForm Model="_model" OnValidSubmit="SubmitAsync">
+                <DataAnnotationsValidator />
+
+                <div class="mb-3">
+                    <label class="form-label" for="fullName">Họ và tên *</label>
+                    <InputText id="fullName" class="form-control" @bind-Value="_model.FullName" />
+                    <ValidationMessage For="() => _model.FullName" />
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label" for="dob">Ngày sinh *</label>
+                        <InputDate TValue="DateOnly?" id="dob" class="form-control" @bind-Value="_model.DateOfBirth"
+                                   max="@DateTime.Today.ToString("yyyy-MM-dd")" />
+                        <ValidationMessage For="() => _model.DateOfBirth" />
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label" for="gender">Giới tính</label>
+                        <InputSelect id="gender" class="form-select" @bind-Value="_model.Gender">
+                            <option value="">-- Không chọn --</option>
+                            <option value="Male">Nam</option>
+                            <option value="Female">Nữ</option>
+                            <option value="Other">Khác</option>
+                        </InputSelect>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label" for="phone">Số điện thoại *</label>
+                        <InputText id="phone" type="tel" class="form-control" @bind-Value="_model.Phone" />
+                        <ValidationMessage For="() => _model.Phone" />
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label" for="email">Email *</label>
+                        <InputText id="email" type="email" class="form-control" @bind-Value="_model.Email" autocomplete="email" />
+                        <ValidationMessage For="() => _model.Email" />
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label" for="address">Địa chỉ</label>
+                    <InputText id="address" class="form-control" @bind-Value="_model.Address" />
+                    <ValidationMessage For="() => _model.Address" />
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label" for="password">Mật khẩu *</label>
+                        <InputText id="password" type="password" class="form-control" @bind-Value="_model.Password" autocomplete="new-password" />
+                        <ValidationMessage For="() => _model.Password" />
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label" for="confirm">Nhập lại mật khẩu *</label>
+                        <InputText id="confirm" type="password" class="form-control" @bind-Value="_model.ConfirmPassword" autocomplete="new-password" />
+                        <ValidationMessage For="() => _model.ConfirmPassword" />
+                    </div>
+                </div>
+
+                <button class="btn btn-primary" type="submit" disabled="@_busy">
+                    @(_busy ? "Đang đăng ký..." : "Đăng ký")
+                </button>
+                <a class="btn btn-link" href="login">Đã có tài khoản? Đăng nhập</a>
+            </EditForm>
+        }
+    </div>
+</div>
+
+@code {
+    private readonly RegisterRequest _model = new();
+    private List<string> _errors = new();
+    private RegisterResponse? _success;
+    private bool _busy;
+
+    private async Task SubmitAsync()
+    {
+        _busy = true;
+        _errors = new();
+
+        // Select rỗng sẽ gửi "" -> phải đổi thành null, nếu không DB từ chối (ràng buộc Gender)
+        var payload = new RegisterRequest
+        {
+            FullName = _model.FullName,
+            DateOfBirth = _model.DateOfBirth,
+            Phone = _model.Phone,
+            Email = _model.Email,
+            Password = _model.Password,
+            ConfirmPassword = _model.ConfirmPassword,
+            Gender = string.IsNullOrWhiteSpace(_model.Gender) ? null : _model.Gender,
+            Address = string.IsNullOrWhiteSpace(_model.Address) ? null : _model.Address
+        };
+
+        var result = await Api.PostAsync<RegisterRequest, RegisterResponse>("api/auth/register", payload);
+        _busy = false;
+
+        if (result.IsSuccess)
+            _success = result.Data;
+        else
+            _errors = result.Errors;
+    }
+}

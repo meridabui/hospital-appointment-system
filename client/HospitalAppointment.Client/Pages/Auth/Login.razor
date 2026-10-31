@@ -1,0 +1,82 @@
+﻿@page "/login"
+@inject ApiClient Api
+@inject AuthSession Session
+@inject NavigationManager Nav
+
+<PageTitle>Đăng nhập</PageTitle>
+
+<div class="row justify-content-center">
+    <div class="col-md-7 col-lg-5">
+        <h1 class="h3 mb-3">Đăng nhập</h1>
+
+        @if (!string.IsNullOrEmpty(_error))
+        {
+            <div class="alert alert-danger" role="alert">@_error</div>
+        }
+
+        <EditForm Model="_model" OnValidSubmit="SubmitAsync">
+            <DataAnnotationsValidator />
+
+            <div class="mb-3">
+                <label class="form-label" for="username">Email hoặc tên đăng nhập</label>
+                <InputText id="username" class="form-control" @bind-Value="_model.Username" autocomplete="username" />
+                <ValidationMessage For="() => _model.Username" />
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label" for="password">Mật khẩu</label>
+                <InputText id="password" type="password" class="form-control" @bind-Value="_model.Password" autocomplete="current-password" />
+                <ValidationMessage For="() => _model.Password" />
+            </div>
+
+            <button class="btn btn-primary w-100" type="submit" disabled="@_busy">
+                @(_busy ? "Đang đăng nhập..." : "Đăng nhập")
+            </button>
+        </EditForm>
+
+        <p class="mt-3">Chưa có tài khoản? <a href="register">Đăng ký</a></p>
+    </div>
+</div>
+
+@code {
+    [Parameter, SupplyParameterFromQuery(Name = "returnUrl")]
+    public string? ReturnUrl { get; set; }
+
+    private readonly LoginRequest _model = new();
+    private string? _error;
+    private bool _busy;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Session.InitializeAsync();
+        if (Session.IsAuthenticated)
+            Nav.NavigateTo(GetTarget());
+    }
+
+    private async Task SubmitAsync()
+    {
+        _busy = true;
+        _error = null;
+
+        var result = await Api.PostAsync<LoginRequest, AuthResponse>("api/auth/login", _model);
+        _busy = false;
+
+        if (!result.IsSuccess || result.Data == null)
+        {
+            _error = result.ErrorMessage;
+            return;
+        }
+
+        await Session.SignInAsync(result.Data);
+        Nav.NavigateTo(GetTarget());
+    }
+
+    // Chỉ chấp nhận đường dẫn nội bộ để tránh chuyển hướng sang trang lạ
+    private string GetTarget()
+    {
+        if (!string.IsNullOrEmpty(ReturnUrl) && ReturnUrl.StartsWith('/') && !ReturnUrl.StartsWith("//"))
+            return ReturnUrl;
+
+        return Session.IsInRole("Patient") ? "book-appointment" : "";
+    }
+}
