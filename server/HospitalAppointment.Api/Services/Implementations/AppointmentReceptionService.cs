@@ -13,6 +13,7 @@ public class AppointmentReceptionService : IAppointmentReceptionService
     public AppointmentReceptionService(IAppointmentRepository appointmentRepository)
     {
         _appointmentRepository = appointmentRepository;
+    }
 
     public async Task<List<ReceptionAppointmentDto>> SearchAppointmentsAsync(string? keyword, DateOnly? date = null)
     {
