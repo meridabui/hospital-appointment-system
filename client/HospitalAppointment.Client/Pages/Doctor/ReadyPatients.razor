@@ -1,0 +1,198 @@
+@page "/doctor/ready-patients"
+@layout DoctorLayout
+@inject ExaminationApi ExaminationApi
+
+<PageTitle>Ready patients</PageTitle>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="mb-0">Ready patients</h1>
+    <button class="btn btn-outline-primary" disabled="@_loading" @onclick="LoadAsync">Refresh</button>
+</div>
+
+@* TODO: remove this picker when Auth is merged. *@
+<div class="mb-3">
+    <label class="form-label" for="doctor">Test as doctor</label>
+    <select id="doctor" class="form-select" @bind="_userId" @bind:after="LoadAsync">
+        @foreach (var doctor in TestDoctors)
+        {
+            <option value="@doctor.UserId">@doctor.Name</option>
+        }
+    </select>
+</div>
+
+@if (_error is not null)
+{
+    <StatusMessage Type="danger" Text="@_error" />
+}
+else if (_loading)
+{
+    <p>Loading...</p>
+}
+else if (_patients.Count == 0)
+{
+    <StatusMessage Text="No patients are ready for consultation today." />
+}
+else
+{
+    <input class="form-control mb-3" placeholder="Search by patient name, patient code or appointment code"
+           aria-label="Search patients" @bind="_search" @bind:event="oninput" />
+
+    <div class="table-responsive">
+        <table class="table table-hover align-middle">
+            <thead>
+                <tr>
+                    <th>Time</th>
+                    <th>Appointment</th>
+                    <th>Patient</th>
+                    <th>Department</th>
+                    <th>Reason</th>
+                    <th>Status</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var patient in FilteredPatients)
+                {
+                    <tr>
+                        <td>@patient.StartTime.ToString("HH:mm") - @patient.EndTime.ToString("HH:mm")</td>
+                        <td>@patient.AppointmentCode</td>
+                        <td>@patient.PatientName<br /><small class="text-muted">@patient.PatientCode</small></td>
+                        <td>@patient.DepartmentName</td>
+                        <td>@patient.BookingReason</td>
+                        <td>@patient.Status</td>
+                        <td class="text-nowrap">
+                            <button class="btn btn-sm btn-primary" @onclick="() => OpenPopup(patient)">View</button>
+                            @if (patient.Status == InConsultation)
+                            {
+                                @* TODO: open the EMR page when it is built. *@
+                                <button class="btn btn-sm btn-success" disabled>Create EMR</button>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+}
+
+@if (_selected is not null)
+{
+    <div class="modal-backdrop fade show"></div>
+    <div class="modal fade show d-block" role="dialog" aria-modal="true" aria-labelledby="patient-title">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 id="patient-title" class="modal-title h5">@_selected.PatientName</h2>
+                    <button class="btn-close" aria-label="Close" disabled="@_starting" @onclick="ClosePopup"></button>
+                </div>
+                <div class="modal-body">
+                    @if (_popupError is not null)
+                    {
+                        <StatusMessage Type="danger" Text="@_popupError" />
+                    }
+                    <p class="mb-1">Status: <strong>@_selected.Status</strong></p>
+                    <p class="mb-1">Patient code: @_selected.PatientCode</p>
+                    <p class="mb-1">Date of birth: @(_selected.DateOfBirth?.ToString("dd/MM/yyyy") ?? "-")</p>
+                    <p class="mb-1">Gender: @(_selected.Gender ?? "-")</p>
+                    <p class="mb-1">Phone: @(_selected.Phone ?? "-")</p>
+                    <p class="mb-1">Address: @(_selected.Address ?? "-")</p>
+                    <p class="mb-1">Appointment: @_selected.AppointmentCode, @_selected.SlotDate.ToString("dd/MM/yyyy")</p>
+                    <p class="mb-1">Time: @_selected.StartTime.ToString("HH:mm") - @_selected.EndTime.ToString("HH:mm")</p>
+                    <p class="mb-1">Department: @_selected.DepartmentName</p>
+                    <p class="mb-0">Reason: @(_selected.BookingReason ?? "-")</p>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-outline-secondary" disabled="@_starting" @onclick="ClosePopup">Close</button>
+                    @if (_selected.Status == ReadyForConsultation)
+                    {
+                        <button class="btn btn-primary" disabled="@_starting" @onclick="StartConsultationAsync">Start consultation</button>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private const string ReadyForConsultation = "ReadyForConsultation";
+    private const string InConsultation = "InConsultation";
+
+    // UserIds from the sample data.
+    private static readonly (int UserId, string Name)[] TestDoctors =
+    {
+        (10, "Nguyễn Văn An"),
+        (11, "Trần Minh Khôi"),
+        (12, "Lê Thị Hồng Nhung"),
+        (13, "Phạm Quốc Bảo"),
+        (14, "Võ Thị Mai Anh"),
+        (15, "Đặng Hoàng Long"),
+        (16, "Bùi Thanh Tùng"),
+        (17, "Huỳnh Thị Ngọc Lan"),
+        (18, "Ngô Văn Hải (deactivated)")
+    };
+
+    private int _userId = 10;
+    private List<ReadyPatient> _patients = new();
+    private ReadyPatient? _selected;
+    private string _search = string.Empty;
+    private string? _error;
+    private string? _popupError;
+    private bool _starting;
+    private bool _loading = true;
+
+    private IEnumerable<ReadyPatient> FilteredPatients => _patients.Where(x =>
+        x.PatientName.Contains(_search, StringComparison.OrdinalIgnoreCase)
+        || x.PatientCode.Contains(_search, StringComparison.OrdinalIgnoreCase)
+        || x.AppointmentCode.Contains(_search, StringComparison.OrdinalIgnoreCase));
+
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private void OpenPopup(ReadyPatient patient)
+    {
+        _selected = patient;
+        _popupError = null;
+    }
+
+    private void ClosePopup() => _selected = null;
+
+    private async Task StartConsultationAsync()
+    {
+        _starting = true;
+        _popupError = null;
+
+        try
+        {
+            await ExaminationApi.StartConsultationAsync(_selected!.AppointmentId, _userId);
+            await LoadAsync();
+        }
+        catch (ApiException ex)
+        {
+            _popupError = ex.Message;
+        }
+        finally
+        {
+            _starting = false;
+        }
+    }
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        _error = null;
+        _selected = null;
+
+        try
+        {
+            _patients = await ExaminationApi.GetReadyPatientsAsync(_userId);
+        }
+        catch (ApiException ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+}

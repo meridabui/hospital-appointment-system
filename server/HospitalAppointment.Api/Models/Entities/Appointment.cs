@@ -41,4 +41,17 @@ public class Appointment
     public User? CancelledByUser { get; set; }
     public User? NoShowByUser { get; set; }
     public MedicalRecord? MedicalRecord { get; set; }
+
+    public bool CanStartConsultation() => Status == AppointmentStatus.ReadyForConsultation;
+
+    public void StartConsultation()
+    {
+        if (!CanStartConsultation())
+        {
+            throw new InvalidOperationException($"Cannot start consultation while the appointment is {Status}.");
+        }
+
+        Status = AppointmentStatus.InConsultation;
+        ConsultationStartedAt = DateTime.UtcNow;
+    }
 }
