@@ -16,6 +16,16 @@ public interface IAppointmentRepository
     // Lấy appointment theo Id (có tracking để cập nhật trạng thái)
     Task<Appointment?> GetByIdAsync(int appointmentId);
 
+    Task<IReadOnlyList<Appointment>> SearchForReceptionAsync(
+        string? search,
+        DateOnly? date,
+        AppointmentStatus? status,
+        CancellationToken cancellationToken);
+
+    Task<Appointment?> GetForReceptionUpdateAsync(
+        int appointmentId,
+        CancellationToken cancellationToken);
+
     // Appointment của bác sĩ theo các trạng thái trong một ngày (dùng cho danh sách chờ khám)
     Task<List<Appointment>> GetByDoctorStatusesAndDateAsync(
         int doctorId, IReadOnlyCollection<AppointmentStatus> statuses, DateOnly date);
@@ -45,6 +55,48 @@ public class AppointmentRepository : IAppointmentRepository
             .Include(a => a.ScheduleSlot)
             .FirstOrDefaultAsync(a => a.AppointmentId == appointmentId);
 
+    public async Task<IReadOnlyList<Appointment>> SearchForReceptionAsync(
+        string? search,
+        DateOnly? date,
+        AppointmentStatus? status,
+        CancellationToken cancellationToken)
+    {
+        var query = ReceptionQuery().AsNoTracking();
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var term = search.Trim();
+            query = query.Where(appointment =>
+                appointment.AppointmentCode.Contains(term) ||
+                appointment.Patient.PatientCode.Contains(term) ||
+                appointment.Patient.FullName.Contains(term) ||
+                (appointment.Patient.Phone != null && appointment.Patient.Phone.Contains(term)));
+        }
+
+        if (date.HasValue)
+        {
+            query = query.Where(appointment => appointment.ScheduleSlot.SlotDate == date.Value);
+        }
+
+        if (status.HasValue)
+        {
+            query = query.Where(appointment => appointment.Status == status.Value);
+        }
+
+        return await query
+            .OrderBy(appointment => appointment.ScheduleSlot.SlotDate)
+            .ThenBy(appointment => appointment.ScheduleSlot.StartTime)
+            .Take(200)
+            .ToListAsync(cancellationToken);
+    }
+
+    public Task<Appointment?> GetForReceptionUpdateAsync(
+        int appointmentId,
+        CancellationToken cancellationToken)
+        => ReceptionQuery().SingleOrDefaultAsync(
+            appointment => appointment.AppointmentId == appointmentId,
+            cancellationToken);
+
     public Task<List<Appointment>> GetByDoctorStatusesAndDateAsync(
         int doctorId, IReadOnlyCollection<AppointmentStatus> statuses, DateOnly date)
         => _db.Appointments.AsNoTracking()
@@ -63,4 +115,13 @@ public class AppointmentRepository : IAppointmentRepository
     public void AddAuditLog(AuditLog log) => _db.AuditLogs.Add(log);
 
     public Task<int> SaveChangesAsync() => _db.SaveChangesAsync();
+
+    private IQueryable<Appointment> ReceptionQuery()
+        => _db.Appointments
+            .Include(appointment => appointment.Patient)
+            .Include(appointment => appointment.Doctor)
+                .ThenInclude(doctor => doctor.Staff)
+                    .ThenInclude(staff => staff.User)
+            .Include(appointment => appointment.Department)
+            .Include(appointment => appointment.ScheduleSlot);
 }
