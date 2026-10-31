@@ -6,6 +6,10 @@ using HospitalAppointment.Api.Models.Entities;
 using HospitalAppointment.Api.Repositories;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using System.Text;
 
 namespace HospitalAppointment.Api.Services;
 
@@ -121,7 +125,6 @@ public class AuthService : IAuthService
             Role = user.Role.RoleName
         };
     }
-
     private static string GeneratePatientCode()
         => $"PT{DateTime.UtcNow:yyMMdd}{Guid.NewGuid().ToString("N")[..6].ToUpperInvariant()}";
 }

@@ -1,42 +1,382 @@
-<div class="top-row ps-3 navbar navbar-dark">
-    <div class="container-fluid">
-        <a class="navbar-brand" href="">Hospital System</a>
-        <button title="Navigation menu" class="navbar-toggler" @onclick="ToggleNavMenu">
-            <span class="navbar-toggler-icon"></span>
-        </button>
+@implements IDisposable
+
+@using Microsoft.AspNetCore.Components.Routing
+
+@inject AuthSession Session
+@inject NavigationManager Navigation
+
+<div class="sidebar">
+
+    <!-- BRAND -->
+    <div class="sidebar-brand">
+        <div class="brand-icon">+</div>
+
+        <div>
+            <strong>Hospital</strong>
+            <span>Appointment System</span>
+        </div>
     </div>
+
+    @if (Session.IsInRole("Nurse"))
+    {
+        <!-- NURSE MENU -->
+        <div class="menu-section">
+
+            <span class="menu-label">NURSE WORKSPACE</span>
+
+            <NavLink href="/nurse/dashboard"
+                     Match="NavLinkMatch.All"
+                     class="menu-link">
+
+                <span class="menu-icon">▦</span>
+                <span>Dashboard</span>
+
+            </NavLink>
+
+            <NavLink href="/nurse/dashboard"
+                     class="menu-link">
+
+                <span class="menu-icon">☷</span>
+                <span>Waiting Patients</span>
+
+            </NavLink>
+
+        </div>
+    }
+    else if (Session.IsInRole("MedicalServiceManager"))
+    {
+        <!-- MEDICAL SERVICE MANAGER MENU -->
+        <div class="menu-section">
+
+            <span class="menu-label">MANAGEMENT</span>
+
+            <NavLink href="/manager/departments"
+                     Match="NavLinkMatch.All"
+                     class="menu-link">
+
+                <span class="menu-icon">▦</span>
+                <span>Departments</span>
+
+            </NavLink>
+
+            <NavLink href="/manager/medical-services"
+                     Match="NavLinkMatch.All"
+                     class="menu-link">
+
+                <span class="menu-icon">✚</span>
+                <span>Medical Services</span>
+
+            </NavLink>
+
+        </div>
+    }
+    else if (Session.IsInRole("Receptionist"))
+    {
+        <!-- RECEPTIONIST MENU -->
+        <div class="menu-section">
+
+            <span class="menu-label">RECEPTION</span>
+
+            <NavLink href="/reception/desk"
+                     class="menu-link">
+
+                <span class="menu-icon">✔</span>
+                <span>Quầy tiếp nhận</span>
+
+            </NavLink>
+
+        </div>
+    }
+    else if (Session.IsInRole("Doctor"))
+    {
+        <!-- DOCTOR MENU -->
+        <div class="menu-section">
+
+            <span class="menu-label">DOCTOR WORKSPACE</span>
+
+            <NavLink href="/doctor/ready-patients"
+                     class="menu-link">
+
+                <span class="menu-icon">☷</span>
+                <span>Ready Patients</span>
+
+            </NavLink>
+
+        </div>
+    }
+    else if (Session.IsInRole("Patient"))
+    {
+        <!-- PATIENT MENU -->
+        <div class="menu-section">
+
+            <span class="menu-label">PATIENT</span>
+
+            <NavLink href="/book-appointment"
+                     class="menu-link">
+
+                <span class="menu-icon">✚</span>
+                <span>Đặt lịch khám</span>
+
+            </NavLink>
+
+        </div>
+    }
+    else
+    {
+        <!-- GUEST MENU -->
+        <div class="menu-section">
+
+            <span class="menu-label">ACCOUNT</span>
+
+            <NavLink href="/login"
+                     Match="NavLinkMatch.All"
+                     class="menu-link">
+
+                <span class="menu-icon">↪</span>
+                <span>Login</span>
+
+            </NavLink>
+
+            <NavLink href="/register"
+                     Match="NavLinkMatch.All"
+                     class="menu-link">
+
+                <span class="menu-icon">✎</span>
+                <span>Register</span>
+
+            </NavLink>
+
+        </div>
+    }
+
+    @if (Session.IsAuthenticated)
+    {
+        <!-- ACCOUNT (dùng chung cho mọi vai trò) -->
+        <div class="sidebar-user">
+
+            <div class="user-avatar">@UserInitial</div>
+
+            <div class="user-details">
+                <strong>@Session.Current!.FullName</strong>
+                <span>@RoleLabel</span>
+            </div>
+
+        </div>
+
+        <button class="sidebar-logout" @onclick="LogoutAsync">
+            <span>↪</span>
+            Logout
+        </button>
+    }
+
 </div>
 
-<div class="@NavMenuCssClass nav-scrollable" @onclick="ToggleNavMenu">
-    <nav class="flex-column">
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
-                <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Trang chủ
-            </NavLink>
-        </div>
-        
-        <!-- Luồng 4: Tiếp nhận bệnh nhân -->
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="reception/desk">
-                <span class="bi bi-person-check-fill" aria-hidden="true"></span> Quầy tiếp nhận
-            </NavLink>
-        </div>
+<style>
 
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="counter">
-                <span class="bi bi-plus-square-fill-nav-menu" aria-hidden="true"></span> Counter
-            </NavLink>
-        </div>
-    </nav>
-</div>
+    /* SIDEBAR */
+
+    .sidebar {
+        height: 100%;
+        min-height: 100vh;
+        background: #0f1f46;
+        color: white;
+        display: flex;
+        flex-direction: column;
+        padding: 22px 15px;
+        box-sizing: border-box;
+    }
+
+    /* BRAND */
+
+    .sidebar-brand {
+        display: flex;
+        align-items: center;
+        gap: 11px;
+        padding: 8px 10px 27px;
+        border-bottom: 1px solid rgba(255,255,255,.12);
+    }
+
+    .brand-icon {
+        width: 39px;
+        height: 39px;
+        border-radius: 9px;
+        background: #2563eb;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        font-size: 27px;
+        font-weight: 700;
+        flex-shrink: 0;
+    }
+
+    .sidebar-brand strong,
+    .sidebar-brand span {
+        display: block;
+    }
+
+    .sidebar-brand strong {
+        font-size: 17px;
+    }
+
+    .sidebar-brand span {
+        font-size: 10px;
+        color: #a5b4fc;
+        margin-top: 4px;
+    }
+
+    /* MENU */
+
+    .menu-section {
+        margin-top: 30px;
+    }
+
+    .menu-label {
+        display: block;
+        padding: 0 12px;
+        margin-bottom: 12px;
+        color: #94a3b8;
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 1.2px;
+    }
+
+    .menu-link {
+        display: flex;
+        align-items: center;
+        gap: 13px;
+        padding: 12px;
+        margin: 5px 0;
+        color: #cbd5e1;
+        text-decoration: none;
+        border-radius: 7px;
+        font-size: 14px;
+        transition: .2s;
+    }
+
+    .menu-link:hover {
+        background: rgba(255,255,255,.08);
+        color: white;
+    }
+
+    .menu-link.active {
+        background: #2563eb;
+        color: white;
+    }
+
+    .menu-icon {
+        width: 20px;
+        text-align: center;
+        font-size: 18px;
+        flex-shrink: 0;
+    }
+
+    /* USER */
+
+    .sidebar-user {
+        display: flex;
+        align-items: center;
+        gap: 11px;
+        margin-top: auto;
+        padding: 17px 8px;
+        border-top: 1px solid rgba(255,255,255,.12);
+    }
+
+    .user-avatar {
+        width: 37px;
+        height: 37px;
+        border-radius: 50%;
+        background: #2563eb;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        flex-shrink: 0;
+    }
+
+    .user-details {
+        min-width: 0;
+    }
+
+    .user-details strong,
+    .user-details span {
+        display: block;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .user-details strong {
+        font-size: 12px;
+    }
+
+    .user-details span {
+        color: #94a3b8;
+        font-size: 11px;
+        margin-top: 3px;
+    }
+
+    /* LOGOUT */
+
+    .sidebar-logout {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px;
+        background: transparent;
+        border: none;
+        color: #fca5a5;
+        cursor: pointer;
+        font-size: 14px;
+        border-radius: 7px;
+        text-align: left;
+        width: 100%;
+    }
+
+    .sidebar-logout:hover {
+        background: rgba(255,255,255,.08);
+    }
+
+</style>
 
 @code {
-    private bool collapseNavMenu = true;
 
-    private string? NavMenuCssClass => collapseNavMenu ? "collapse" : null;
+    private string UserInitial =>
+        string.IsNullOrWhiteSpace(Session.Current?.FullName)
+            ? "?"
+            : Session.Current!.FullName.Trim()[..1].ToUpperInvariant();
 
-    private void ToggleNavMenu()
+    private string RoleLabel => Session.Current?.Role switch
     {
-        collapseNavMenu = !collapseNavMenu;
+        "MedicalServiceManager" => "Medical Service Manager",
+        var role => role ?? string.Empty
+    };
+
+    protected override void OnInitialized()
+    {
+        Session.Changed += OnStateChanged;
+        Navigation.LocationChanged += OnLocationChanged;
     }
+
+    // Refresh sidebar khi đăng nhập / đăng xuất
+    private void OnStateChanged() => _ = InvokeAsync(StateHasChanged);
+
+    // Refresh sidebar sau khi điều hướng
+    private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
+        => _ = InvokeAsync(StateHasChanged);
+
+    // Logout
+    private async Task LogoutAsync()
+    {
+        await Session.SignOutAsync();
+
+        Navigation.NavigateTo("/login", true);
+    }
+
+    // Hủy đăng ký sự kiện khi component bị dispose
+    public void Dispose()
+    {
+        Session.Changed -= OnStateChanged;
+        Navigation.LocationChanged -= OnLocationChanged;
+    }
+
 }

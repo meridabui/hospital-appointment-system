@@ -1,0 +1,836 @@
+﻿
+@page "/manager/medical-services"
+
+@using HospitalAppointment.Client.Models.Department
+@using HospitalAppointment.Client.Models.MedicalService
+@using HospitalAppointment.Client.Services
+@using Microsoft.AspNetCore.Components.Forms
+
+@inject MedicalServiceApiService MedicalServiceService
+@inject DepartmentApiService DepartmentService
+@inject AuthApiService AuthService
+@inject NavigationManager Navigation
+
+<PageTitle>Medical Service Management</PageTitle>
+
+<div class="service-page">
+
+    <!-- Header -->
+    <div class="page-header">
+        <div>
+            <h2>Medical Service Management</h2>
+            <p>Manage hospital medical services.</p>
+        </div>
+
+        <button class="primary-button" @onclick="OpenCreateForm">
+            + Add Medical Service
+        </button>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(errorMessage))
+    {
+        <div class="alert-error">@errorMessage</div>
+    }
+
+    @if (!string.IsNullOrWhiteSpace(successMessage))
+    {
+        <div class="alert-success">@successMessage</div>
+    }
+
+    <!-- Create / Edit Form -->
+    @if (showForm)
+    {
+        <div class="form-card">
+
+            <div class="form-header">
+                <h3>@(editingId.HasValue ? "Edit Medical Service" : "Create Medical Service")</h3>
+
+                <button class="close-button" @onclick="CloseForm">
+                    ×
+                </button>
+            </div>
+
+            <EditForm Model="@formModel" OnSubmit="SaveService">
+
+                <div class="form-grid">
+
+                    <div class="form-group">
+                        <label>Department *</label>
+
+                        <InputSelect class="form-input"
+                                     @bind-Value="formModel.DepartmentId">
+
+                            <option value="0">Select Department</option>
+
+                            @foreach (var department in departments.Where(d => d.IsActive))
+                            {
+                                <option value="@department.DepartmentId">
+                                    @department.DepartmentName
+                                </option>
+                            }
+                        </InputSelect>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Service Code *</label>
+
+                        <InputText class="form-input"
+                                   @bind-Value="formModel.ServiceCode"
+                                   placeholder="Example: CARD001" />
+                    </div>
+
+                    <div class="form-group full-width">
+                        <label>Service Name *</label>
+
+                        <InputText class="form-input"
+                                   @bind-Value="formModel.ServiceName"
+                                   placeholder="Enter service name" />
+                    </div>
+
+                    <div class="form-group full-width">
+                        <label>Description</label>
+
+                        <InputTextArea class="form-input description-input"
+                                       @bind-Value="formModel.Description"
+                                       placeholder="Enter service description..." />
+                    </div>
+
+                </div>
+
+                @if (!string.IsNullOrWhiteSpace(formError))
+                {
+                    <div class="alert-error">@formError</div>
+                }
+
+                <div class="form-actions">
+
+                    <button type="button"
+                            class="secondary-button"
+                            @onclick="CloseForm">
+                        Cancel
+                    </button>
+
+                    <button type="submit"
+                            class="primary-button"
+                            disabled="@isSaving">
+                        @(isSaving ? "Saving..." : "Save Medical Service")
+                    </button>
+
+                </div>
+
+            </EditForm>
+        </div>
+    }
+
+    <!-- Service List -->
+    <div class="content-card">
+
+        <div class="toolbar">
+
+            <input class="search-input"
+                   @bind="searchTerm"
+                   @bind:event="oninput"
+                   @bind:after="SearchServices"
+                   placeholder="Search service code or name..." />
+
+            <select class="filter-select"
+                    @bind="selectedDepartmentId"
+                    @bind:after="SearchServices">
+
+                <option value="0">All Departments</option>
+
+                @foreach (var department in departments)
+                {
+                    <option value="@department.DepartmentId">
+                        @department.DepartmentName
+                    </option>
+                }
+            </select>
+
+            <select class="filter-select"
+                    @bind="statusFilter"
+                    @bind:after="SearchServices">
+
+                <option value="all">All Status</option>
+                <option value="true">Active</option>
+                <option value="false">Inactive</option>
+            </select>
+
+            <button class="secondary-button"
+                    @onclick="LoadServices"
+                    disabled="@isLoading">
+                Refresh
+            </button>
+
+        </div>
+
+        @if (isLoading)
+        {
+            <div class="loading-state">
+                Loading medical services...
+            </div>
+        }
+        else if (medicalServices.Count == 0)
+        {
+            <div class="empty-state">
+                <h3>No medical services found</h3>
+                <p>Try changing your filters or add a new service.</p>
+            </div>
+        }
+        else
+        {
+            <div class="table-container">
+
+                <table class="service-table">
+
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Service Code</th>
+                            <th>Service Name</th>
+                            <th>Department</th>
+                            <th>Description</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        @foreach (var item in medicalServices)
+                        {
+                            <tr @key="item.MedicalServiceId">
+
+                                <td>@item.MedicalServiceId</td>
+
+                                <td>
+                                    <strong>@item.ServiceCode</strong>
+                                </td>
+
+                                <td>@item.ServiceName</td>
+
+                                <td>@item.DepartmentName</td>
+
+                                <td class="description-cell">
+                                    @(string.IsNullOrWhiteSpace(item.Description)
+                                        ? "-"
+                                        : item.Description)
+                                </td>
+
+                                <td>
+                                    @if (item.IsActive)
+                                    {
+                                        <span class="status active">
+                                            Active
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="status inactive">
+                                            Inactive
+                                        </span>
+                                    }
+                                </td>
+
+                                <td>
+                                    <div class="action-group">
+
+                                        <button class="edit-button"
+                                                @onclick="() => OpenEditForm(item)">
+                                            Edit
+                                        </button>
+
+                                        <button class="status-button @(item.IsActive ? "deactivate" : "activate")"
+                                                disabled="@updatingId.HasValue"
+                                                @onclick="() => ToggleStatus(item)">
+                                            @(item.IsActive ? "Deactivate" : "Activate")
+                                        </button>
+
+                                    </div>
+                                </td>
+
+                            </tr>
+                        }
+                    </tbody>
+
+                </table>
+
+            </div>
+        }
+
+        <div class="table-footer">
+            Total medical services: @medicalServices.Count
+        </div>
+
+    </div>
+
+</div>
+
+<style>
+    .service-page {
+        min-height: 100vh;
+        padding: 28px;
+        background: #f8fafc;
+    }
+
+    .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 15px;
+        margin-bottom: 24px;
+    }
+
+    .page-header h2 {
+        margin: 0;
+        color: #172554;
+        font-size: 25px;
+    }
+
+    .page-header p {
+        margin: 7px 0 0;
+        color: #64748b;
+        font-size: 14px;
+    }
+
+    .content-card,
+    .form-card {
+        background: white;
+        border: 1px solid #e2e8f0;
+        border-radius: 9px;
+        padding: 22px;
+        margin-bottom: 20px;
+    }
+
+    .toolbar {
+        display: flex;
+        gap: 12px;
+        margin-bottom: 22px;
+    }
+
+    .search-input,
+    .filter-select,
+    .form-input {
+        height: 40px;
+        padding: 0 12px;
+        border: 1px solid #cbd5e1;
+        border-radius: 6px;
+        background: white;
+        color: #334155;
+        outline: none;
+        box-sizing: border-box;
+        font-size: 13px;
+    }
+
+    .search-input {
+        flex: 1;
+        min-width: 180px;
+    }
+
+    .filter-select {
+        width: 175px;
+    }
+
+    .search-input:focus,
+    .filter-select:focus,
+    .form-input:focus {
+        border-color: #2563eb;
+    }
+
+    .form-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 22px;
+    }
+
+    .form-header h3 {
+        margin: 0;
+        color: #1e293b;
+        font-size: 18px;
+    }
+
+    .close-button {
+        background: none;
+        border: none;
+        font-size: 25px;
+        color: #64748b;
+        cursor: pointer;
+    }
+
+    .form-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 18px;
+    }
+
+    .form-group label {
+        display: block;
+        margin-bottom: 8px;
+        font-size: 13px;
+        font-weight: 600;
+        color: #334155;
+    }
+
+    .form-group .form-input {
+        width: 100%;
+    }
+
+    .full-width {
+        grid-column: span 2;
+    }
+
+    .description-input {
+        height: 85px;
+        padding: 10px 12px;
+        resize: vertical;
+    }
+
+    .form-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+        margin-top: 22px;
+    }
+
+    .primary-button,
+    .secondary-button,
+    .edit-button,
+    .status-button {
+        border-radius: 6px;
+        padding: 9px 15px;
+        cursor: pointer;
+        font-size: 13px;
+        font-weight: 600;
+    }
+
+    .primary-button {
+        background: #2563eb;
+        border: 1px solid #2563eb;
+        color: white;
+    }
+
+    .primary-button:hover {
+        background: #1d4ed8;
+    }
+
+    .secondary-button {
+        background: white;
+        border: 1px solid #cbd5e1;
+        color: #334155;
+    }
+
+    .edit-button {
+        background: #eff6ff;
+        color: #2563eb;
+        border: 1px solid #bfdbfe;
+    }
+
+    .status-button {
+        border: 1px solid transparent;
+    }
+
+    .deactivate {
+        background: #fff7ed;
+        color: #c2410c;
+        border-color: #fed7aa;
+    }
+
+    .activate {
+        background: #f0fdf4;
+        color: #15803d;
+        border-color: #bbf7d0;
+    }
+
+    button:disabled {
+        opacity: .6;
+        cursor: not-allowed;
+    }
+
+    .table-container {
+        overflow-x: auto;
+    }
+
+    .service-table {
+        width: 100%;
+        border-collapse: collapse;
+        white-space: nowrap;
+    }
+
+    .service-table th {
+        padding: 13px 12px;
+        background: #f8fafc;
+        color: #64748b;
+        text-align: left;
+        font-size: 12px;
+        border-bottom: 1px solid #e2e8f0;
+    }
+
+    .service-table td {
+        padding: 15px 12px;
+        border-bottom: 1px solid #f1f5f9;
+        color: #334155;
+        font-size: 13px;
+    }
+
+    .description-cell {
+        max-width: 220px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .status {
+        display: inline-block;
+        padding: 5px 10px;
+        border-radius: 20px;
+        font-size: 11px;
+        font-weight: 600;
+    }
+
+    .status.active {
+        color: #15803d;
+        background: #dcfce7;
+    }
+
+    .status.inactive {
+        color: #b91c1c;
+        background: #fee2e2;
+    }
+
+    .action-group {
+        display: flex;
+        gap: 7px;
+    }
+
+    .table-footer {
+        padding-top: 17px;
+        color: #64748b;
+        font-size: 12px;
+    }
+
+    .loading-state,
+    .empty-state {
+        padding: 50px 20px;
+        text-align: center;
+        color: #64748b;
+    }
+
+    .empty-state h3 {
+        color: #334155;
+    }
+
+    .empty-state p {
+        font-size: 13px;
+    }
+
+    .alert-error,
+    .alert-success {
+        padding: 12px 15px;
+        border-radius: 6px;
+        margin-bottom: 18px;
+        font-size: 13px;
+    }
+
+    .alert-error {
+        color: #b91c1c;
+        background: #fef2f2;
+        border: 1px solid #fecaca;
+    }
+
+    .alert-success {
+        color: #15803d;
+        background: #f0fdf4;
+        border: 1px solid #bbf7d0;
+    }
+
+    @@media(max-width: 950px) {
+        .toolbar {
+            flex-wrap: wrap;
+        }
+
+        .search-input {
+            flex-basis: 100%;
+        }
+    }
+
+    @@media(max-width: 700px) {
+        .service-page {
+            padding: 15px;
+        }
+
+        .page-header {
+            align-items: flex-start;
+            flex-direction: column;
+        }
+
+        .filter-select {
+            flex: 1;
+            min-width: 120px;
+        }
+
+        .form-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .full-width {
+            grid-column: span 1;
+        }
+    }
+</style>
+
+@code {
+    private List<MedicalServiceDto> medicalServices = new();
+    private List<DepartmentDto> departments = new();
+
+    private CreateMedicalServiceDto formModel = new();
+
+    private int? editingId;
+    private int selectedDepartmentId;
+
+    private string searchTerm = string.Empty;
+    private string statusFilter = "all";
+
+    private string errorMessage = string.Empty;
+    private string successMessage = string.Empty;
+    private string formError = string.Empty;
+
+    private bool isLoading;
+    private bool isSaving;
+    private bool showForm;
+
+    private int? updatingId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!AuthService.IsLoggedIn ||
+            !string.Equals(
+                AuthService.CurrentUser?.Role,
+                "MedicalServiceManager",
+                StringComparison.OrdinalIgnoreCase))
+        {
+            Navigation.NavigateTo("/login", true);
+            return;
+        }
+
+        await LoadDepartments();
+        await LoadServices();
+    }
+
+    // Load all departments for filtering and form selection
+    private async Task LoadDepartments()
+    {
+        try
+        {
+            departments = await DepartmentService.GetAllAsync();
+        }
+        catch (HttpRequestException ex)
+        {
+            errorMessage = ex.Message;
+            HandleUnauthorized(ex);
+        }
+        catch
+        {
+            errorMessage = "Unable to load departments.";
+        }
+    }
+
+    // Load services with search and filters
+    private async Task LoadServices()
+    {
+        if (isLoading)
+            return;
+
+        isLoading = true;
+        errorMessage = string.Empty;
+
+        try
+        {
+            int? departmentId = selectedDepartmentId > 0
+                ? selectedDepartmentId
+                : null;
+
+            bool? isActive = statusFilter switch
+            {
+                "true" => true,
+                "false" => false,
+                _ => null
+            };
+
+            medicalServices = await MedicalServiceService.GetAllAsync(
+                searchTerm,
+                departmentId,
+                isActive);
+        }
+        catch (HttpRequestException ex)
+        {
+            errorMessage = ex.Message;
+            HandleUnauthorized(ex);
+        }
+        catch
+        {
+            errorMessage = "Unable to load medical services.";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task SearchServices()
+    {
+        await LoadServices();
+    }
+
+    // Open create form
+    private void OpenCreateForm()
+    {
+        editingId = null;
+        formModel = new CreateMedicalServiceDto();
+
+        formError = string.Empty;
+        errorMessage = string.Empty;
+
+        showForm = true;
+    }
+
+    // Open edit form
+    private void OpenEditForm(MedicalServiceDto service)
+    {
+        editingId = service.MedicalServiceId;
+
+        formModel = new CreateMedicalServiceDto
+        {
+            DepartmentId = service.DepartmentId,
+            ServiceCode = service.ServiceCode,
+            ServiceName = service.ServiceName,
+            Description = service.Description
+        };
+
+        formError = string.Empty;
+        errorMessage = string.Empty;
+
+        showForm = true;
+    }
+
+    private void CloseForm()
+    {
+        showForm = false;
+        editingId = null;
+        formError = string.Empty;
+    }
+
+    // Create / Update
+    private async Task SaveService()
+    {
+        if (isSaving)
+            return;
+
+        formError = string.Empty;
+
+        if (formModel.DepartmentId <= 0)
+        {
+            formError = "Please select a department.";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(formModel.ServiceCode) ||
+            string.IsNullOrWhiteSpace(formModel.ServiceName))
+        {
+            formError = "Service code and service name are required.";
+            return;
+        }
+
+        isSaving = true;
+
+        try
+        {
+            if (editingId.HasValue)
+            {
+                var request = new UpdateMedicalServiceDto
+                {
+                    DepartmentId = formModel.DepartmentId,
+                    ServiceCode = formModel.ServiceCode,
+                    ServiceName = formModel.ServiceName,
+                    Description = formModel.Description
+                };
+
+                await MedicalServiceService.UpdateAsync(
+                    editingId.Value,
+                    request);
+
+                successMessage = "Medical service updated successfully.";
+            }
+            else
+            {
+                await MedicalServiceService.CreateAsync(formModel);
+
+                successMessage = "Medical service created successfully.";
+            }
+
+            showForm = false;
+            editingId = null;
+
+            await LoadServices();
+        }
+        catch (HttpRequestException ex)
+        {
+            formError = ex.Message;
+            HandleUnauthorized(ex);
+        }
+        catch
+        {
+            formError = "Unable to save medical service.";
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    // Activate / Deactivate
+    private async Task ToggleStatus(MedicalServiceDto service)
+    {
+        if (updatingId.HasValue)
+            return;
+
+        updatingId = service.MedicalServiceId;
+
+        errorMessage = string.Empty;
+        successMessage = string.Empty;
+
+        try
+        {
+            await MedicalServiceService.UpdateStatusAsync(
+                service.MedicalServiceId,
+                !service.IsActive);
+
+            successMessage = service.IsActive
+                ? "Medical service deactivated successfully."
+                : "Medical service activated successfully.";
+
+            await LoadServices();
+        }
+        catch (HttpRequestException ex)
+        {
+            errorMessage = ex.Message;
+            HandleUnauthorized(ex);
+        }
+        catch
+        {
+            errorMessage = "Unable to update medical service status.";
+        }
+        finally
+        {
+            updatingId = null;
+        }
+    }
+
+    private void HandleUnauthorized(HttpRequestException ex)
+    {
+        if (ex.StatusCode == System.Net.HttpStatusCode.Unauthorized ||
+            ex.StatusCode == System.Net.HttpStatusCode.Forbidden)
+        {
+            AuthService.Logout();
+            Navigation.NavigateTo("/login", true);
+        }
+    }
+}

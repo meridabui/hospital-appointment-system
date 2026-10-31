@@ -1,4 +1,4 @@
-using HospitalAppointment.Api.Models.Enums;
+﻿using HospitalAppointment.Api.Models.Enums;
 
 namespace HospitalAppointment.Api.Models.Entities;
 
@@ -21,6 +21,9 @@ public class Appointment
     public DateTime? CheckedInAt { get; set; }
     public int? CheckedInBy { get; set; }
     public DateTime? ReadyAt { get; set; }
+    public int? ReadyBy { get; set; }
+
+    public User? ReadyByUser { get; set; }
     public DateTime? ConsultationStartedAt { get; set; }
     public DateTime? CompletedAt { get; set; }
     public int? CompletedBy { get; set; }

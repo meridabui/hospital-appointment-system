@@ -1,0 +1,628 @@
+﻿
+@page "/nurse/patient-preparation/{AppointmentId:int}"
+
+@using HospitalAppointment.Client.Models.Nurse
+@using HospitalAppointment.Client.Services
+
+@inject NurseApiService NurseService
+@inject AuthApiService AuthService
+@inject NavigationManager Navigation
+
+<PageTitle>Patient Preparation</PageTitle>
+
+<div class="preparation-page">
+
+    <div class="page-header">
+        <div>
+            <button class="back-button"
+                    @onclick="BackToDashboard">
+                ← Back to Dashboard
+            </button>
+
+            <h2>Patient Preparation</h2>
+
+            <p>Review patient information before consultation.</p>
+        </div>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(errorMessage))
+    {
+        <div class="alert-error">
+            @errorMessage
+        </div>
+    }
+
+    @if (isLoading)
+    {
+        <div class="loading-card">
+            Loading patient information...
+        </div>
+    }
+    else if (appointment == null)
+    {
+        <div class="empty-card">
+            <h3>Appointment not available</h3>
+            <p>The appointment could not be loaded.</p>
+
+            <button class="primary-button"
+                    @onclick="BackToDashboard">
+                Back to Dashboard
+            </button>
+        </div>
+    }
+    else
+    {
+        <div class="appointment-banner">
+            <div>
+                <span>Appointment Code</span>
+                <h3>@appointment.AppointmentCode</h3>
+            </div>
+
+            <div>
+                <span>Current Status</span>
+
+                <span class="status-badge">
+                    @appointment.Status
+                </span>
+            </div>
+        </div>
+
+        <div class="information-grid">
+
+            <!-- Patient information -->
+            <section class="info-card">
+                <div class="card-heading">
+                    <div class="heading-icon blue">P</div>
+                    <div>
+                        <h3>Patient Information</h3>
+                        <p>Personal details</p>
+                    </div>
+                </div>
+
+                <div class="info-row">
+                    <span>Patient Code</span>
+                    <strong>@appointment.PatientCode</strong>
+                </div>
+
+                <div class="info-row">
+                    <span>Full Name</span>
+                    <strong>@appointment.PatientName</strong>
+                </div>
+
+                <div class="info-row">
+                    <span>Phone Number</span>
+                    <strong>@(appointment.PatientPhone ?? "Not provided")</strong>
+                </div>
+            </section>
+
+            <!-- Doctor information -->
+            <section class="info-card">
+                <div class="card-heading">
+                    <div class="heading-icon green">D</div>
+                    <div>
+                        <h3>Medical Information</h3>
+                        <p>Assigned doctor and department</p>
+                    </div>
+                </div>
+
+                <div class="info-row">
+                    <span>Doctor</span>
+                    <strong>@appointment.DoctorName</strong>
+                </div>
+
+                <div class="info-row">
+                    <span>Department</span>
+                    <strong>@appointment.DepartmentName</strong>
+                </div>
+
+                <div class="info-row">
+                    <span>Doctor ID</span>
+                    <strong>@appointment.DoctorId</strong>
+                </div>
+            </section>
+
+            <!-- Appointment information -->
+            <section class="info-card">
+                <div class="card-heading">
+                    <div class="heading-icon orange">A</div>
+                    <div>
+                        <h3>Appointment Information</h3>
+                        <p>Scheduled examination</p>
+                    </div>
+                </div>
+
+                <div class="info-row">
+                    <span>Appointment Date</span>
+                    <strong>@appointment.SlotDate.ToString("dd/MM/yyyy")</strong>
+                </div>
+
+                <div class="info-row">
+                    <span>Start Time</span>
+                    <strong>@appointment.StartTime.ToString("HH:mm")</strong>
+                </div>
+
+                <div class="info-row">
+                    <span>End Time</span>
+                    <strong>@appointment.EndTime.ToString("HH:mm")</strong>
+                </div>
+
+                <div class="info-row">
+                    <span>Checked-in Time</span>
+                    <strong>@FormatDateTime(appointment.CheckedInAt)</strong>
+                </div>
+            </section>
+
+            <!-- Preparation information -->
+            <section class="info-card preparation-card">
+                <div class="card-heading">
+                    <div class="heading-icon purple">N</div>
+                    <div>
+                        <h3>Nurse Preparation</h3>
+                        <p>Patient readiness confirmation</p>
+                    </div>
+                </div>
+
+                <div class="preparation-note">
+                    <strong>Before marking the patient as ready:</strong>
+
+                    <ul>
+                        <li>Confirm the patient's identity.</li>
+                        <li>Check the appointment information.</li>
+                        <li>Complete the required preparation.</li>
+                        <li>Confirm the patient is ready for consultation.</li>
+                    </ul>
+                </div>
+
+                @if (isCompleted)
+                {
+                    <div class="success-message">
+                        <strong>✓ Patient is ready for consultation.</strong>
+                        <p>@successMessage</p>
+                    </div>
+                }
+                else if (appointment.Status == "CheckedIn")
+                {
+                    <button class="mark-ready-button"
+                            @onclick="MarkReady"
+                            disabled="@isSubmitting">
+
+                        @if (isSubmitting)
+                        {
+                            <span>Processing...</span>
+                        }
+                        else
+                        {
+                            <span>✓ Mark Ready for Consultation</span>
+                        }
+                    </button>
+                }
+                else
+                {
+                    <div class="warning-message">
+                        This appointment is no longer waiting for preparation.
+                    </div>
+                }
+
+            </section>
+
+        </div>
+
+        <div class="bottom-actions">
+            <button class="secondary-button"
+                    @onclick="BackToDashboard">
+                Back to Dashboard
+            </button>
+        </div>
+    }
+
+</div>
+
+<style>
+    .preparation-page {
+        min-height: 100vh;
+        background: #f8fafc;
+        padding: 28px;
+    }
+
+    .page-header {
+        margin-bottom: 24px;
+    }
+
+    .back-button {
+        background: transparent;
+        border: none;
+        color: #2563eb;
+        font-weight: 600;
+        cursor: pointer;
+        padding: 0;
+        margin-bottom: 18px;
+    }
+
+    .page-header h2 {
+        color: #172554;
+        font-size: 25px;
+        margin: 0;
+    }
+
+    .page-header p {
+        color: #64748b;
+        font-size: 14px;
+        margin-top: 7px;
+    }
+
+    .appointment-banner {
+        background: white;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        padding: 22px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+        gap: 15px;
+    }
+
+    .appointment-banner span:first-child {
+        color: #64748b;
+        font-size: 12px;
+    }
+
+    .appointment-banner h3 {
+        color: #1e293b;
+        margin: 7px 0 0;
+        font-size: 20px;
+    }
+
+    .status-badge {
+        display: inline-block;
+        margin-top: 8px;
+        padding: 6px 12px;
+        border-radius: 20px;
+        background: #ffedd5;
+        color: #c2410c;
+        font-size: 12px;
+        font-weight: 600;
+    }
+
+    .information-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 18px;
+    }
+
+    .info-card {
+        background: white;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        padding: 23px;
+    }
+
+    .card-heading {
+        display: flex;
+        align-items: center;
+        gap: 13px;
+        margin-bottom: 20px;
+    }
+
+    .heading-icon {
+        width: 42px;
+        height: 42px;
+        border-radius: 9px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        font-size: 17px;
+    }
+
+    .heading-icon.blue {
+        background: #dbeafe;
+        color: #2563eb;
+    }
+
+    .heading-icon.green {
+        background: #dcfce7;
+        color: #15803d;
+    }
+
+    .heading-icon.orange {
+        background: #ffedd5;
+        color: #ea580c;
+    }
+
+    .heading-icon.purple {
+        background: #f3e8ff;
+        color: #9333ea;
+    }
+
+    .card-heading h3 {
+        color: #1e293b;
+        font-size: 16px;
+        margin: 0;
+    }
+
+    .card-heading p {
+        color: #94a3b8;
+        font-size: 12px;
+        margin: 5px 0 0;
+    }
+
+    .info-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 15px;
+        padding: 13px 0;
+        border-bottom: 1px solid #f1f5f9;
+        font-size: 13px;
+    }
+
+    .info-row:last-child {
+        border-bottom: none;
+    }
+
+    .info-row span {
+        color: #64748b;
+    }
+
+    .info-row strong {
+        color: #1e293b;
+        text-align: right;
+    }
+
+    .preparation-card {
+        grid-column: span 2;
+    }
+
+    .preparation-note {
+        background: #f8fafc;
+        padding: 17px;
+        border-radius: 8px;
+        color: #334155;
+        font-size: 13px;
+        line-height: 1.8;
+    }
+
+    .preparation-note ul {
+        padding-left: 20px;
+        margin-bottom: 0;
+    }
+
+    .mark-ready-button {
+        width: 100%;
+        padding: 14px;
+        background: #16a34a;
+        color: white;
+        border: none;
+        border-radius: 7px;
+        margin-top: 20px;
+        font-weight: 600;
+        cursor: pointer;
+    }
+
+    .mark-ready-button:hover {
+        background: #15803d;
+    }
+
+    .mark-ready-button:disabled {
+        background: #94a3b8;
+        cursor: not-allowed;
+    }
+
+    .success-message {
+        margin-top: 18px;
+        background: #f0fdf4;
+        border: 1px solid #bbf7d0;
+        padding: 15px;
+        border-radius: 7px;
+        color: #15803d;
+    }
+
+    .success-message p {
+        font-size: 13px;
+        margin: 6px 0 0;
+    }
+
+    .warning-message {
+        margin-top: 18px;
+        padding: 13px;
+        border-radius: 7px;
+        background: #fff7ed;
+        color: #c2410c;
+        font-size: 13px;
+    }
+
+    .bottom-actions {
+        display: flex;
+        justify-content: flex-end;
+        margin-top: 22px;
+    }
+
+    .secondary-button,
+    .primary-button {
+        padding: 10px 17px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-weight: 600;
+    }
+
+    .secondary-button {
+        border: 1px solid #cbd5e1;
+        background: white;
+        color: #334155;
+    }
+
+    .primary-button {
+        background: #2563eb;
+        border: none;
+        color: white;
+    }
+
+    .loading-card,
+    .empty-card {
+        padding: 50px;
+        background: white;
+        border-radius: 10px;
+        text-align: center;
+        color: #64748b;
+    }
+
+    .empty-card h3 {
+        color: #1e293b;
+    }
+
+    .alert-error {
+        padding: 13px;
+        background: #fef2f2;
+        color: #b91c1c;
+        border-radius: 7px;
+        margin-bottom: 20px;
+    }
+
+    @@media (max-width: 750px) {
+        .information-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .preparation-card {
+            grid-column: span 1;
+        }
+
+        .appointment-banner {
+            align-items: flex-start;
+            flex-direction: column;
+        }
+    }
+
+    @@media (max-width: 500px) {
+        .preparation-page {
+            padding: 15px;
+        }
+
+        .info-card {
+            padding: 17px;
+        }
+
+        .info-row {
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .info-row strong {
+            text-align: left;
+        }
+    }
+</style>
+
+@code {
+    [Parameter]
+    public int AppointmentId { get; set; }
+
+    private NurseAppointmentDto? appointment;
+
+    private bool isLoading = true;
+    private bool isSubmitting;
+    private bool isCompleted;
+
+    private string errorMessage = string.Empty;
+    private string successMessage = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!AuthService.IsLoggedIn ||
+            !string.Equals(
+                AuthService.CurrentUser?.Role,
+                "Nurse",
+                StringComparison.OrdinalIgnoreCase))
+        {
+            Navigation.NavigateTo("/login", true);
+            return;
+        }
+
+        await LoadAppointmentAsync();
+    }
+
+    private async Task LoadAppointmentAsync()
+    {
+        isLoading = true;
+        errorMessage = string.Empty;
+
+        try
+        {
+            appointment =
+                await NurseService.GetAppointmentDetailAsync(AppointmentId);
+        }
+        catch (HttpRequestException ex)
+        {
+            errorMessage = ex.Message;
+
+            if (ex.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+            {
+                AuthService.Logout();
+                Navigation.NavigateTo("/login", true);
+            }
+        }
+        catch (Exception)
+        {
+            errorMessage = "Unable to load appointment information.";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task MarkReady()
+    {
+        if (isSubmitting || appointment == null ||
+            appointment.Status != "CheckedIn")
+            return;
+
+        isSubmitting = true;
+        errorMessage = string.Empty;
+        successMessage = string.Empty;
+
+        try
+        {
+            var result = await NurseService.MarkReadyAsync(
+                AppointmentId);
+
+            appointment.Status = result.Status;
+            appointment.ReadyAt = result.ReadyAt;
+            appointment.ReadyBy = result.ReadyBy;
+
+            isCompleted = true;
+            successMessage = result.Message;
+        }
+        catch (HttpRequestException ex)
+        {
+            errorMessage = ex.Message;
+
+            if (ex.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+            {
+                AuthService.Logout();
+                Navigation.NavigateTo("/login", true);
+            }
+        }
+        catch (Exception)
+        {
+            errorMessage = "Unable to update appointment status.";
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+
+    private void BackToDashboard()
+    {
+        Navigation.NavigateTo("/nurse/dashboard");
+    }
+
+    private static string FormatDateTime(DateTime? value)
+    {
+        return value.HasValue
+            ? value.Value.ToLocalTime().ToString("dd/MM/yyyy HH:mm")
+            : "Not recorded";
+    }
+}

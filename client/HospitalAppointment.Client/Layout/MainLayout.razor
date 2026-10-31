@@ -1,38 +1,41 @@
-﻿@inherits LayoutComponentBase
+@inherits LayoutComponentBase
 @implements IDisposable
 @inject AuthSession Session
 @inject NavigationManager Nav
 
-<div class="page">
-    <div class="sidebar">
+<div class="app-layout">
+
+    <aside class="app-sidebar">
         <NavMenu />
-    </div>
+    </aside>
 
-    <main>
-        <div class="top-row px-4">
-            @if (Session.IsAuthenticated)
-            {
-                if (Session.IsInRole("Patient"))
+    <main class="app-main">
+        <div class="app-topbar">
+            <span>Hospital Appointment Management System</span>
+
+            <div class="app-topbar-actions">
+                @if (Session.IsAuthenticated)
                 {
-                    <NavLink href="book-appointment">Đặt lịch khám</NavLink>
+                    if (Session.IsInRole("Patient"))
+                    {
+                        <NavLink href="book-appointment">Đặt lịch khám</NavLink>
+                    }
+
+                    <a href="#" @onclick="SignOutAsync" @onclick:preventDefault>
+                        Đăng xuất (@Session.Current!.FullName)
+                    </a>
                 }
-
-                <a href="#" @onclick="SignOutAsync" @onclick:preventDefault>
-                    Đăng xuất (@Session.Current!.FullName)
-                </a>
-            }
-            else
-            {
-                <NavLink href="login">Đăng nhập</NavLink>
-                <NavLink href="register">Đăng ký</NavLink>
-            }
-
-            <a href="https://learn.microsoft.com/aspnet/core/" target="_blank">About</a>
+                else
+                {
+                    <NavLink href="login">Đăng nhập</NavLink>
+                    <NavLink href="register">Đăng ký</NavLink>
+                }
+            </div>
         </div>
 
-        <article class="content px-4">
+        <div class="app-content">
             @Body
-        </article>
+        </div>
     </main>
 </div>
 
@@ -53,3 +56,68 @@
 
     public void Dispose() => Session.Changed -= OnSessionChanged;
 }
+
+<style>
+    .app-layout {
+        display: flex;
+        min-height: 100vh;
+    }
+
+    .app-sidebar {
+        width: 250px;
+        flex-shrink: 0;
+    }
+
+    .app-main {
+        flex: 1;
+        min-width: 0;
+        background: #f8fafc;
+    }
+
+    .app-topbar {
+        height: 65px;
+        background: white;
+        border-bottom: 1px solid #e2e8f0;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 25px;
+        color: #64748b;
+        font-size: 13px;
+    }
+
+    .app-topbar-actions {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+    }
+
+    .app-content {
+        min-width: 0;
+    }
+
+    @@media (max-width: 750px) {
+        .app-sidebar {
+            width: 190px;
+        }
+    }
+
+    @@media (max-width: 550px) {
+        .app-layout {
+            flex-direction: column;
+        }
+
+        .app-sidebar {
+            width: 100%;
+            min-height: auto;
+        }
+
+        .app-sidebar .sidebar {
+            min-height: auto;
+        }
+
+        .sidebar-user {
+            margin-top: 20px;
+        }
+    }
+</style>

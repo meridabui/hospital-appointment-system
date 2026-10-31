@@ -1,0 +1,721 @@
+﻿
+@page "/manager/departments"
+
+@using HospitalAppointment.Client.Models.Department
+@using HospitalAppointment.Client.Services
+@using Microsoft.AspNetCore.Components.Forms
+
+@inject DepartmentApiService DepartmentService
+@inject AuthApiService AuthService
+@inject NavigationManager Navigation
+
+<PageTitle>Department Management</PageTitle>
+
+<div class="department-page">
+
+    <div class="page-header">
+        <div>
+            <h2>Department Management</h2>
+            <p>Manage hospital departments.</p>
+        </div>
+
+        <button class="primary-button" @onclick="OpenCreateForm">
+            + Add Department
+        </button>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(errorMessage))
+    {
+        <div class="alert-error">@errorMessage</div>
+    }
+
+    @if (!string.IsNullOrWhiteSpace(successMessage))
+    {
+        <div class="alert-success">@successMessage</div>
+    }
+
+    @if (showForm)
+    {
+        <div class="form-card">
+            <div class="form-header">
+                <h3>@(editingId.HasValue ? "Edit Department" : "Create Department")</h3>
+
+                <button class="close-button" @onclick="CloseForm">
+                    ×
+                </button>
+            </div>
+
+            <EditForm Model="@formModel" OnSubmit="SaveDepartment">
+                <div class="form-grid">
+
+                    <div class="form-group">
+                        <label>Department Code *</label>
+                        <InputText class="form-input"
+                                   @bind-Value="formModel.DepartmentCode"
+                                   placeholder="Example: CARD" />
+                    </div>
+
+                    <div class="form-group">
+                        <label>Department Name *</label>
+                        <InputText class="form-input"
+                                   @bind-Value="formModel.DepartmentName"
+                                   placeholder="Enter department name" />
+                    </div>
+
+                    <div class="form-group full-width">
+                        <label>Description</label>
+                        <InputTextArea class="form-input description-input"
+                                       @bind-Value="formModel.Description"
+                                       placeholder="Enter description..." />
+                    </div>
+
+                </div>
+
+                @if (!string.IsNullOrWhiteSpace(formError))
+                {
+                    <div class="alert-error">@formError</div>
+                }
+
+                <div class="form-actions">
+                    <button type="button"
+                            class="secondary-button"
+                            @onclick="CloseForm">
+                        Cancel
+                    </button>
+
+                    <button type="submit"
+                            class="primary-button"
+                            disabled="@isSaving">
+                        @(isSaving ? "Saving..." : "Save Department")
+                    </button>
+                </div>
+            </EditForm>
+        </div>
+    }
+
+    <div class="content-card">
+
+        <div class="toolbar">
+
+            <div class="search-group">
+                <input class="search-input"
+                       @bind="searchTerm"
+                       @bind:event="oninput"
+                       @bind:after="SearchDepartments"
+                       placeholder="Search department code or name..." />
+            </div>
+
+            <select class="filter-select"
+                    @bind="statusFilter"
+                    @bind:after="SearchDepartments">
+                <option value="all">All Status</option>
+                <option value="true">Active</option>
+                <option value="false">Inactive</option>
+            </select>
+
+            <button class="secondary-button"
+                    @onclick="LoadDepartments"
+                    disabled="@isLoading">
+                Refresh
+            </button>
+
+        </div>
+
+        @if (isLoading)
+        {
+            <div class="loading-state">
+                Loading departments...
+            </div>
+        }
+        else if (departments.Count == 0)
+        {
+            <div class="empty-state">
+                <h3>No departments found</h3>
+                <p>Try changing your search or add a new department.</p>
+            </div>
+        }
+        else
+        {
+            <div class="table-container">
+                <table class="department-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Department Code</th>
+                            <th>Department Name</th>
+                            <th>Description</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        @foreach (var item in departments)
+                        {
+                            <tr @key="item.DepartmentId">
+                                <td>@item.DepartmentId</td>
+
+                                <td>
+                                    <strong>@item.DepartmentCode</strong>
+                                </td>
+
+                                <td>@item.DepartmentName</td>
+
+                                <td class="description-cell">
+                                    @(string.IsNullOrWhiteSpace(item.Description)
+                                        ? "-"
+                                        : item.Description)
+                                </td>
+
+                                <td>
+                                    @if (item.IsActive)
+                                    {
+                                        <span class="status active">Active</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="status inactive">Inactive</span>
+                                    }
+                                </td>
+
+                                <td>
+                                    <div class="action-group">
+                                        <button class="edit-button"
+                                                @onclick="() => OpenEditForm(item)">
+                                            Edit
+                                        </button>
+
+                                        <button class="status-button @(item.IsActive ? "deactivate" : "activate")"
+                                                disabled="@updatingId.HasValue"
+                                                @onclick="() => ToggleStatus(item)">
+                                            @(item.IsActive ? "Deactivate" : "Activate")
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+
+        <div class="table-footer">
+            Total departments: @departments.Count
+        </div>
+
+    </div>
+
+</div>
+
+<style>
+    .department-page {
+        min-height: 100vh;
+        padding: 28px;
+        background: #f8fafc;
+    }
+
+    .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 15px;
+        margin-bottom: 24px;
+    }
+
+    .page-header h2 {
+        margin: 0;
+        color: #172554;
+        font-size: 25px;
+    }
+
+    .page-header p {
+        margin: 7px 0 0;
+        color: #64748b;
+        font-size: 14px;
+    }
+
+    .content-card,
+    .form-card {
+        background: white;
+        border: 1px solid #e2e8f0;
+        border-radius: 9px;
+        padding: 22px;
+        margin-bottom: 20px;
+    }
+
+    .toolbar {
+        display: flex;
+        gap: 12px;
+        margin-bottom: 22px;
+    }
+
+    .search-group {
+        flex: 1;
+    }
+
+    .search-input,
+    .filter-select,
+    .form-input {
+        width: 100%;
+        height: 40px;
+        padding: 0 12px;
+        border: 1px solid #cbd5e1;
+        border-radius: 6px;
+        background: white;
+        color: #334155;
+        outline: none;
+        box-sizing: border-box;
+        font-size: 13px;
+    }
+
+    .search-input:focus,
+    .filter-select:focus,
+    .form-input:focus {
+        border-color: #2563eb;
+    }
+
+    .filter-select {
+        width: 155px;
+    }
+
+    .form-card {
+        padding: 24px;
+    }
+
+    .form-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 22px;
+    }
+
+    .form-header h3 {
+        margin: 0;
+        color: #1e293b;
+        font-size: 18px;
+    }
+
+    .close-button {
+        background: none;
+        border: none;
+        font-size: 25px;
+        color: #64748b;
+        cursor: pointer;
+    }
+
+    .form-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 18px;
+    }
+
+    .form-group label {
+        display: block;
+        margin-bottom: 8px;
+        font-size: 13px;
+        font-weight: 600;
+        color: #334155;
+    }
+
+    .full-width {
+        grid-column: span 2;
+    }
+
+    .description-input {
+        height: 85px;
+        padding: 10px 12px;
+        resize: vertical;
+    }
+
+    .form-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+        margin-top: 22px;
+    }
+
+    .primary-button,
+    .secondary-button,
+    .edit-button,
+    .status-button {
+        border-radius: 6px;
+        padding: 9px 15px;
+        cursor: pointer;
+        font-size: 13px;
+        font-weight: 600;
+    }
+
+    .primary-button {
+        background: #2563eb;
+        border: 1px solid #2563eb;
+        color: white;
+    }
+
+    .primary-button:hover {
+        background: #1d4ed8;
+    }
+
+    .secondary-button {
+        background: white;
+        border: 1px solid #cbd5e1;
+        color: #334155;
+    }
+
+    .edit-button {
+        background: #eff6ff;
+        color: #2563eb;
+        border: 1px solid #bfdbfe;
+    }
+
+    .status-button {
+        border: 1px solid transparent;
+    }
+
+    .deactivate {
+        background: #fff7ed;
+        color: #c2410c;
+        border-color: #fed7aa;
+    }
+
+    .activate {
+        background: #f0fdf4;
+        color: #15803d;
+        border-color: #bbf7d0;
+    }
+
+    button:disabled {
+        opacity: .6;
+        cursor: not-allowed;
+    }
+
+    .table-container {
+        overflow-x: auto;
+    }
+
+    .department-table {
+        width: 100%;
+        border-collapse: collapse;
+        white-space: nowrap;
+    }
+
+    .department-table th {
+        padding: 13px 12px;
+        background: #f8fafc;
+        color: #64748b;
+        text-align: left;
+        font-size: 12px;
+        border-bottom: 1px solid #e2e8f0;
+    }
+
+    .department-table td {
+        padding: 15px 12px;
+        border-bottom: 1px solid #f1f5f9;
+        color: #334155;
+        font-size: 13px;
+    }
+
+    .description-cell {
+        max-width: 230px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .status {
+        display: inline-block;
+        padding: 5px 10px;
+        border-radius: 20px;
+        font-size: 11px;
+        font-weight: 600;
+    }
+
+    .status.active {
+        color: #15803d;
+        background: #dcfce7;
+    }
+
+    .status.inactive {
+        color: #b91c1c;
+        background: #fee2e2;
+    }
+
+    .action-group {
+        display: flex;
+        gap: 7px;
+    }
+
+    .table-footer {
+        padding-top: 17px;
+        color: #64748b;
+        font-size: 12px;
+    }
+
+    .loading-state,
+    .empty-state {
+        padding: 50px 20px;
+        text-align: center;
+        color: #64748b;
+    }
+
+    .empty-state h3 {
+        color: #334155;
+    }
+
+    .empty-state p {
+        font-size: 13px;
+    }
+
+    .alert-error,
+    .alert-success {
+        padding: 12px 15px;
+        border-radius: 6px;
+        margin-bottom: 18px;
+        font-size: 13px;
+    }
+
+    .alert-error {
+        color: #b91c1c;
+        background: #fef2f2;
+        border: 1px solid #fecaca;
+    }
+
+    .alert-success {
+        color: #15803d;
+        background: #f0fdf4;
+        border: 1px solid #bbf7d0;
+    }
+
+    @@media(max-width: 700px) {
+        .department-page {
+            padding: 15px;
+        }
+
+        .page-header {
+            align-items: flex-start;
+            flex-direction: column;
+        }
+
+        .toolbar {
+            flex-direction: column;
+        }
+
+        .filter-select {
+            width: 100%;
+        }
+
+        .form-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .full-width {
+            grid-column: span 1;
+        }
+    }
+</style>
+
+@code {
+    private List<DepartmentDto> departments = new();
+
+    private CreateDepartmentDto formModel = new();
+
+    private int? editingId;
+
+    private string searchTerm = string.Empty;
+    private string statusFilter = "all";
+
+    private string errorMessage = string.Empty;
+    private string successMessage = string.Empty;
+    private string formError = string.Empty;
+
+    private bool isLoading;
+    private bool isSaving;
+    private int? updatingId;
+
+    private bool showForm;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!AuthService.IsLoggedIn ||
+            !string.Equals(
+                AuthService.CurrentUser?.Role,
+                "MedicalServiceManager",
+                StringComparison.OrdinalIgnoreCase))
+        {
+            Navigation.NavigateTo("/login", true);
+            return;
+        }
+
+        await LoadDepartments();
+    }
+
+    private async Task LoadDepartments()
+    {
+        if (isLoading)
+            return;
+
+        isLoading = true;
+        errorMessage = string.Empty;
+
+        try
+        {
+            bool? isActive = statusFilter switch
+            {
+                "true" => true,
+                "false" => false,
+                _ => null
+            };
+
+            departments = await DepartmentService.GetAllAsync(
+                searchTerm,
+                isActive);
+        }
+        catch (HttpRequestException ex)
+        {
+            errorMessage = ex.Message;
+
+            if (ex.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+            {
+                AuthService.Logout();
+                Navigation.NavigateTo("/login", true);
+            }
+        }
+        catch
+        {
+            errorMessage = "Unable to load departments.";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task SearchDepartments()
+    {
+        await LoadDepartments();
+    }
+
+    private void OpenCreateForm()
+    {
+        editingId = null;
+        formModel = new CreateDepartmentDto();
+        formError = string.Empty;
+        errorMessage = string.Empty;
+        showForm = true;
+    }
+
+    private void OpenEditForm(DepartmentDto department)
+    {
+        editingId = department.DepartmentId;
+
+        formModel = new CreateDepartmentDto
+        {
+            DepartmentCode = department.DepartmentCode,
+            DepartmentName = department.DepartmentName,
+            Description = department.Description
+        };
+
+        formError = string.Empty;
+        errorMessage = string.Empty;
+        showForm = true;
+    }
+
+    private void CloseForm()
+    {
+        showForm = false;
+        editingId = null;
+        formError = string.Empty;
+    }
+
+    private async Task SaveDepartment()
+    {
+        if (isSaving)
+            return;
+
+        formError = string.Empty;
+
+        if (string.IsNullOrWhiteSpace(formModel.DepartmentCode) ||
+            string.IsNullOrWhiteSpace(formModel.DepartmentName))
+        {
+            formError = "Department code and name are required.";
+            return;
+        }
+
+        isSaving = true;
+
+        try
+        {
+            if (editingId.HasValue)
+            {
+                var request = new UpdateDepartmentDto
+                {
+                    DepartmentCode = formModel.DepartmentCode,
+                    DepartmentName = formModel.DepartmentName,
+                    Description = formModel.Description
+                };
+
+                await DepartmentService.UpdateAsync(
+                    editingId.Value,
+                    request);
+
+                successMessage = "Department updated successfully.";
+            }
+            else
+            {
+                await DepartmentService.CreateAsync(formModel);
+
+                successMessage = "Department created successfully.";
+            }
+
+            showForm = false;
+            editingId = null;
+
+            await LoadDepartments();
+        }
+        catch (HttpRequestException ex)
+        {
+            formError = ex.Message;
+        }
+        catch
+        {
+            formError = "Unable to save department.";
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private async Task ToggleStatus(DepartmentDto department)
+    {
+        if (updatingId.HasValue)
+            return;
+
+        updatingId = department.DepartmentId;
+        errorMessage = string.Empty;
+        successMessage = string.Empty;
+
+        try
+        {
+            await DepartmentService.UpdateStatusAsync(
+                department.DepartmentId,
+                !department.IsActive);
+
+            successMessage = department.IsActive
+                ? "Department deactivated successfully."
+                : "Department activated successfully.";
+
+            await LoadDepartments();
+        }
+        catch (HttpRequestException ex)
+        {
+            errorMessage = ex.Message;
+        }
+        catch
+        {
+            errorMessage = "Unable to update department status.";
+        }
+        finally
+        {
+            updatingId = null;
+        }
+    }
+}

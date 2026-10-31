@@ -134,6 +134,12 @@ public class HospitalAppointmentDbContext : DbContext
             e.HasOne(x => x.ScheduleSlot).WithMany(x => x.Appointments).HasForeignKey(x => x.ScheduleSlotId).OnDelete(DeleteBehavior.Restrict);
             e.HasOne(x => x.ConfirmedByUser).WithMany(x => x.ConfirmedAppointments).HasForeignKey(x => x.ConfirmedBy).OnDelete(DeleteBehavior.NoAction);
             e.HasOne(x => x.CheckedInByUser).WithMany(x => x.CheckedInAppointments).HasForeignKey(x => x.CheckedInBy).OnDelete(DeleteBehavior.NoAction);
+            e.HasIndex(x => x.ReadyBy);
+
+            e.HasOne(x => x.ReadyByUser)
+                .WithMany()
+                .HasForeignKey(x => x.ReadyBy)
+                .OnDelete(DeleteBehavior.NoAction);
             e.HasOne(x => x.CompletedByUser).WithMany(x => x.CompletedAppointments).HasForeignKey(x => x.CompletedBy).OnDelete(DeleteBehavior.NoAction);
             e.HasOne(x => x.CancelledByUser).WithMany(x => x.CancelledAppointments).HasForeignKey(x => x.CancelledBy).OnDelete(DeleteBehavior.NoAction);
             e.HasOne(x => x.NoShowByUser).WithMany(x => x.NoShowAppointments).HasForeignKey(x => x.NoShowBy).OnDelete(DeleteBehavior.NoAction);
