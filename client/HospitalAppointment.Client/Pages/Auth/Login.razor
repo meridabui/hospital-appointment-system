@@ -52,7 +52,14 @@
                                     @onclick="GoToDashboard">
                                 Go to Department Management
                             </button>
-                        }
+                }
+                else if (AuthService.CurrentUser.Role == "SchedulingManager")
+                {
+                    <button class="login-button"
+                            @onclick="GoToDashboard">
+                        Go to Schedule Management
+                    </button>
+                }
 
                 <button class="logout-button"
                         @onclick="Logout">
@@ -321,19 +328,74 @@
     private string errorMessage = string.Empty;
 
     
-private async Task HandleLogin()
-{
-    if (isLoading)
-        return;
-
-    isLoading = true;
-    errorMessage = string.Empty;
-
-    try
+    private async Task HandleLogin()
     {
-        var user = await AuthService.LoginAsync(loginRequest);
+        if (isLoading)
+            return;
 
-        switch (user.Role)
+        isLoading = true;
+        errorMessage = string.Empty;
+
+        try
+        {
+            var user = await AuthService.LoginAsync(loginRequest);
+
+            if (user == null || string.IsNullOrWhiteSpace(user.Role))
+            {
+                AuthService.Logout();
+                errorMessage = "Unable to identify your account role.";
+                return;
+            }
+
+            var role = user.Role
+                .Trim()
+                .Replace(" ", "")
+                .ToLowerInvariant();
+
+            switch (role)
+            {
+                case "nurse":
+                    Navigation.NavigateTo("/nurse/dashboard");
+                    break;
+
+                case "medicalservicemanager":
+                    Navigation.NavigateTo("/manager/departments");
+                    break;
+
+                case "schedulingmanager":
+                    Navigation.NavigateTo("/manager/schedules");
+                    break;
+
+                default:
+                    AuthService.Logout();
+
+                    errorMessage = $"Role '{user.Role}' is not authorized.";
+
+                    break;
+            }
+        }
+        catch (UnauthorizedAccessException)
+        {
+            errorMessage = "Invalid username or password.";
+        }
+        catch (HttpRequestException ex)
+        {
+            errorMessage = $"Cannot connect to API: {ex.Message}";
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Login error: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+
+    private void GoToDashboard()
+    {
+        switch (AuthService.CurrentUser?.Role?.Trim())
         {
             case "Nurse":
                 Navigation.NavigateTo("/nurse/dashboard");
@@ -343,53 +405,16 @@ private async Task HandleLogin()
                 Navigation.NavigateTo("/manager/departments");
                 break;
 
+            case "SchedulingManager":
+                Navigation.NavigateTo("/manager/schedules");
+                break;
+
             default:
                 AuthService.Logout();
-
-                errorMessage =
-                    "You do not have permission to access this system.";
+                Navigation.NavigateTo("/login", true);
                 break;
         }
     }
-    catch (UnauthorizedAccessException)
-    {
-        errorMessage = "Invalid username or password.";
-    }
-    catch (HttpRequestException)
-    {
-        errorMessage =
-            "Cannot connect to the server. Please try again.";
-    }
-    catch (Exception)
-    {
-        errorMessage =
-            "An unexpected error occurred. Please try again.";
-    }
-    finally
-    {
-        isLoading = false;
-    }
-}
-
-
-    private void GoToDashboard()
-{
-    switch (AuthService.CurrentUser?.Role)
-    {
-        case "Nurse":
-            Navigation.NavigateTo("/nurse/dashboard");
-            break;
-
-        case "MedicalServiceManager":
-            Navigation.NavigateTo("/manager/departments");
-            break;
-
-        default:
-            AuthService.Logout();
-            Navigation.NavigateTo("/login", true);
-            break;
-    }
-}
 
     private void Logout()
     {

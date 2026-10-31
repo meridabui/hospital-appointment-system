@@ -73,6 +73,11 @@ builder.Services.AddScoped<
     IMedicalServiceService,
     MedicalServiceService>();
 
+
+builder.Services.AddScoped<IScheduleRepository, ScheduleRepository>();
+
+builder.Services.AddScoped<IScheduleService, ScheduleService>();
+
 // 6. JWT Key
 var jwtKey = builder.Configuration["Jwt:Key"]
     ?? throw new InvalidOperationException("JWT Key is missing.");
