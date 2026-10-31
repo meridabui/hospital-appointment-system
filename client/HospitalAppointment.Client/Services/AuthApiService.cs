@@ -1,4 +1,5 @@
-﻿using HospitalAppointment.Client.Models.Auth;
+﻿
+using HospitalAppointment.Client.Models.Auth;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 
@@ -17,6 +18,7 @@ public class AuthApiService
         _httpClient = httpClient;
     }
 
+    // LOGIN
     public async Task<LoginResponseDto> LoginAsync(
         LoginRequestDto request)
     {
@@ -27,28 +29,30 @@ public class AuthApiService
         if (!response.IsSuccessStatusCode)
         {
             throw new UnauthorizedAccessException(
-                "Tên đăng nhập hoặc mật khẩu không chính xác.");
+                "Invalid username or password.");
         }
 
         var result = await response.Content
             .ReadFromJsonAsync<LoginResponseDto>();
 
-        if (result == null || string.IsNullOrWhiteSpace(result.Token))
+        if (result == null ||
+            string.IsNullOrWhiteSpace(result.Token))
         {
             throw new InvalidOperationException(
-                "Không nhận được JWT Token từ Server.");
+                "JWT Token was not received from server.");
         }
 
-        // Lưu thông tin tài khoản trong bộ nhớ
+        // Save account information in memory
         CurrentUser = result;
 
-        // Tự động gửi JWT trong các request tiếp theo
+        // Attach JWT to subsequent API requests
         _httpClient.DefaultRequestHeaders.Authorization =
             new AuthenticationHeaderValue("Bearer", result.Token);
 
         return result;
     }
 
+    // LOGOUT
     public void Logout()
     {
         CurrentUser = null;
