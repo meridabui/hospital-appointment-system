@@ -1,7 +1,7 @@
 using HospitalAppointment.Client.Core;
 using HospitalAppointment.Client.Models.Reception;
 
-namespace HospitalAppointment.Client.Services.Interfaces;
+namespace HospitalAppointment.Client.Services;
 
 public interface IAppointmentReceptionApiClient
 {

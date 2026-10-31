@@ -1,4 +1,4 @@
-namespace HospitalAppointment.Api.Services.Reception;
+namespace HospitalAppointment.Api.Services;
 
 public interface IHospitalClock
 {

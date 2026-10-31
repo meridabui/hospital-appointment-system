@@ -2,7 +2,7 @@ using HospitalAppointment.Api.Common.Constants;
 using HospitalAppointment.Api.Common.Helpers;
 using HospitalAppointment.Api.DTOs.Reception;
 using HospitalAppointment.Api.Models.Enums;
-using HospitalAppointment.Api.Services.Reception;
+using HospitalAppointment.Api.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 

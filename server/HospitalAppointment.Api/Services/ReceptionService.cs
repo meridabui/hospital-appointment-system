@@ -4,7 +4,7 @@ using HospitalAppointment.Api.Models.Enums;
 using HospitalAppointment.Api.Repositories;
 using Microsoft.EntityFrameworkCore;
 
-namespace HospitalAppointment.Api.Services.Reception;
+namespace HospitalAppointment.Api.Services;
 
 public sealed class ReceptionService : IReceptionService
 {

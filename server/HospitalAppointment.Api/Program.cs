@@ -1,8 +1,6 @@
 ﻿using HospitalAppointment.Api.Data;
 using HospitalAppointment.Api.Extensions;
 using HospitalAppointment.Api.Middlewares;
-using HospitalAppointment.Api.Services.Implementations;
-using HospitalAppointment.Api.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using HospitalAppointment.Api.Repositories;
 using HospitalAppointment.Api.Services;

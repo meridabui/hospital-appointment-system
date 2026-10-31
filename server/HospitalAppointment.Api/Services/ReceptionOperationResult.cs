@@ -1,6 +1,6 @@
 using HospitalAppointment.Api.DTOs.Reception;
 
-namespace HospitalAppointment.Api.Services.Reception;
+namespace HospitalAppointment.Api.Services;
 
 public enum ReceptionFailure
 {

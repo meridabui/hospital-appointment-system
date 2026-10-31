@@ -1,7 +1,5 @@
 using HospitalAppointment.Client;
 using HospitalAppointment.Client.Extensions;
-using HospitalAppointment.Client.Services.Implementations;
-using HospitalAppointment.Client.Services.Interfaces;
 using HospitalAppointment.Client.Services;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;

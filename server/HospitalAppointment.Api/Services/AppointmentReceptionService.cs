@@ -2,8 +2,7 @@ using HospitalAppointment.Api.DTOs.Reception;
 using HospitalAppointment.Api.Models.Entities;
 using HospitalAppointment.Api.Models.Enums;
 using HospitalAppointment.Api.Repositories.Interfaces;
-using HospitalAppointment.Api.Services.Interfaces;
-namespace HospitalAppointment.Api.Services.Implementations;
+namespace HospitalAppointment.Api.Services;
 
 public class AppointmentReceptionService : IAppointmentReceptionService
 {
@@ -72,7 +71,7 @@ public class AppointmentReceptionService : IAppointmentReceptionService
             throw new KeyNotFoundException($"Không tìm thấy lịch hẹn với mã ID {id}.");
         }
 
-        if (!appointment.CanMarkAsNoShow())
+        if (!appointment.CanMarkAsNoShow()) 
         {
             throw new InvalidOperationException($"Không thể đánh dấu vắng mặt cho lịch hẹn #{appointment.AppointmentCode} vì đang ở trạng thái '{appointment.Status}'.");
         }
