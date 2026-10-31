@@ -1,4 +1,5 @@
 using HospitalAppointment.Api.Models.Entities;
+using HospitalAppointment.Api.Models.Enums;
 
 namespace HospitalAppointment.Api.Repositories.Interfaces;
 
@@ -15,6 +16,11 @@ public interface IAppointmentRepository
     Task<Appointment?> FindByIdAsync(int id);
 
     /// <summary>
+    /// Danh sách lịch hẹn của bác sĩ theo trạng thái và ngày khám (luồng Examination)
+    /// </summary>
+    Task<List<Appointment>> GetByDoctorStatusesAndDateAsync(int doctorId, AppointmentStatus[] statuses, DateOnly slotDate);
+
+    /// <summary>
     /// Cập nhật thông tin Appointment theo Class Diagram 3.7.1.1
     /// </summary>
     Task UpdateAsync(Appointment appointment);
@@ -24,4 +30,3 @@ public interface IAppointmentRepository
     /// </summary>
     Task<bool> SaveChangesAsync();
 }
-

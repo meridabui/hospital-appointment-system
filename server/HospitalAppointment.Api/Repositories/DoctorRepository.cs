@@ -45,4 +45,10 @@ public class DoctorRepository : IDoctorRepository
                                    && d.Staff.StaffStatus == StaffStatus.Active
                                    && d.Staff.User.IsActive
                                    && d.DepartmentAssignments.Any(x => x.DepartmentId == departmentId));
+    public Task<Doctor?> GetActiveByUserIdAsync(int userId)
+    => _db.Doctors.AsNoTracking()
+        .FirstOrDefaultAsync(d => d.Staff.UserId == userId
+                               && d.Staff.User.IsActive
+                               && d.Staff.StaffStatus == StaffStatus.Active
+                               && d.DoctorStatus == DoctorStatus.Active);
 }
