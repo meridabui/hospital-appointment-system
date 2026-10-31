@@ -1,4 +1,4 @@
-﻿using HospitalAppointment.Api.Models.Enums;
+using HospitalAppointment.Api.Models.Enums;
 
 namespace HospitalAppointment.Api.Models.Entities;
 

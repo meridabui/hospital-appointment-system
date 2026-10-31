@@ -21,7 +21,6 @@ public sealed class ReceptionController : ControllerBase
     }
 
     [HttpGet]
-    [ProducesResponseType<IReadOnlyList<ReceptionAppointmentDto>>(StatusCodes.Status200OK)]
     public async Task<ActionResult<IReadOnlyList<ReceptionAppointmentDto>>> Search(
         [FromQuery] string? search,
         [FromQuery] DateOnly? date,
@@ -37,8 +36,11 @@ public sealed class ReceptionController : ControllerBase
         int appointmentId,
         CancellationToken cancellationToken)
     {
-        var userId = User.GetUserId();
-        var result = await _receptionService.CheckInAsync(appointmentId, userId, cancellationToken);
+        var result = await _receptionService.CheckInAsync(
+            appointmentId,
+            User.GetUserId(),
+            cancellationToken);
+
         return ToActionResult(result);
     }
 
@@ -48,10 +50,9 @@ public sealed class ReceptionController : ControllerBase
         [FromBody] MarkNoShowRequest request,
         CancellationToken cancellationToken)
     {
-        var userId = User.GetUserId();
         var result = await _receptionService.MarkNoShowAsync(
             appointmentId,
-            userId,
+            User.GetUserId(),
             request.Reason,
             cancellationToken);
 

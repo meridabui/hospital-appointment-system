@@ -1,0 +1,370 @@
+@page "/reception/desk"
+@using HospitalAppointment.Client.Models.Reception
+@using HospitalAppointment.Client.Services.Interfaces
+@inject IAppointmentReceptionApiClient ReceptionApi
+
+<PageTitle>Quầy tiếp nhận bệnh nhân - Hospital Appointment System</PageTitle>
+
+<RoleGuard Role="Receptionist" OnAuthorized="LoadAppointments">
+<div class="container-fluid py-4">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold text-primary mb-1">
+                <i class="bi bi-person-check-fill me-2"></i>Quầy Tiếp Nhận Bệnh Nhân
+            </h2>
+            <p class="text-muted mb-0">Luồng 4: Tra cứu, Check-in và Xử lý vắng mặt (No-show) theo đúng quy trình bệnh viện</p>
+        </div>
+        <button class="btn btn-outline-primary" @onclick="LoadAppointments">
+            <i class="bi bi-arrow-clockwise me-1"></i> Làm mới danh sách
+        </button>
+    </div>
+
+    <!-- Alert Message -->
+    @if (!string.IsNullOrEmpty(alertMessage))
+    {
+        <div class="alert alert-@(alertIsSuccess ? "success" : "danger") alert-dismissible fade show shadow-sm" role="alert">
+            <i class="bi @(alertIsSuccess ? "bi-check-circle-fill" : "bi-exclamation-triangle-fill") me-2"></i>
+            @alertMessage
+            <button type="button" class="btn-close" @onclick="() => alertMessage = null"></button>
+        </div>
+    }
+
+    <!-- Search & Filter Card -->
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-body p-3">
+            <div class="row g-3 align-items-center">
+                <div class="col-md-3">
+                    <label class="form-label small fw-semibold text-secondary">Ngày khám:</label>
+                    <input type="date" class="form-control" @bind="selectedDate" @bind:after="OnDateChanged" />
+                </div>
+                <div class="col-md-5">
+                    <label class="form-label small fw-semibold text-secondary">Tìm kiếm bệnh nhân:</label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
+                        <input type="text" class="form-control" placeholder="Nhập mã hẹn (APT-...), họ tên hoặc SĐT..." 
+                               @bind="searchKeyword" @bind:event="oninput" @bind:after="OnSearchChanged" />
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label small fw-semibold text-secondary">Lọc theo trạng thái:</label>
+                    <div class="btn-group w-100" role="group">
+                        <button type="button" class="btn btn-sm @(selectedStatusFilter == "ALL" ? "btn-primary" : "btn-outline-primary")" 
+                                @onclick='() => SetStatusFilter("ALL")'>Tất cả</button>
+                        <button type="button" class="btn btn-sm @(selectedStatusFilter == "Confirmed" ? "btn-warning text-dark" : "btn-outline-warning text-dark")" 
+                                @onclick='() => SetStatusFilter("Confirmed")'>Chờ tiếp nhận</button>
+                        <button type="button" class="btn btn-sm @(selectedStatusFilter == "CheckedIn" ? "btn-success" : "btn-outline-success")" 
+                                @onclick='() => SetStatusFilter("CheckedIn")'>Đã Check-in</button>
+                        <button type="button" class="btn btn-sm @(selectedStatusFilter == "NoShow" ? "btn-danger" : "btn-outline-danger")" 
+                                @onclick='() => SetStatusFilter("NoShow")'>Vắng mặt</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Appointment Table Card -->
+    <div class="card shadow-sm border-0">
+        <div class="card-body p-0">
+            @if (isLoading)
+            {
+                <div class="text-center py-5">
+                    <div class="spinner-border text-primary" role="status"></div>
+                    <p class="text-muted mt-2">Đang tải danh sách lịch hẹn tiếp nhận...</p>
+                </div>
+            }
+            else if (!FilteredAppointments.Any())
+            {
+                <div class="text-center py-5">
+                    <i class="bi bi-calendar-x text-muted" style="font-size: 3rem;"></i>
+                    <p class="text-muted mt-2">Không tìm thấy lịch hẹn nào phù hợp với bộ lọc.</p>
+                </div>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="ps-3">Mã lịch hẹn</th>
+                                <th>Bệnh nhân</th>
+                                <th>Bác sĩ & Chuyên khoa</th>
+                                <th>Khung giờ khám</th>
+                                <th>Trạng thái</th>
+                                <th class="text-center pe-3" style="width: 220px;">Hành động tiếp nhận</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var apt in FilteredAppointments)
+                            {
+                                <tr>
+                                    <td class="ps-3">
+                                        <span class="badge bg-light text-dark border font-monospace">@apt.AppointmentCode</span>
+                                        @if (!string.IsNullOrEmpty(apt.BookingReason))
+                                        {
+                                            <div class="small text-muted text-truncate" style="max-width: 140px;" title="@apt.BookingReason">
+                                                <i class="bi bi-chat-left-text me-1"></i>@apt.BookingReason
+                                            </div>
+                                        }
+                                    </td>
+                                    <td>
+                                        <div class="fw-bold">@apt.PatientName</div>
+                                        <div class="small text-muted">
+                                            <i class="bi bi-telephone me-1"></i>@(string.IsNullOrEmpty(apt.PatientPhone) ? "Chưa có SĐT" : apt.PatientPhone)
+                                            @if (!string.IsNullOrEmpty(apt.PatientGender))
+                                            {
+                                                <span class="ms-1">(@apt.PatientGender)</span>
+                                            }
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="fw-semibold">@apt.DoctorName</div>
+                                        <div class="small text-muted">@apt.DepartmentName @(string.IsNullOrEmpty(apt.DoctorSpecialty) ? "" : $"• {apt.DoctorSpecialty}")</div>
+                                    </td>
+                                    <td>
+                                        <div class="fw-bold text-dark">
+                                            @apt.StartTime.ToString("HH:mm") - @apt.EndTime.ToString("HH:mm")
+                                        </div>
+                                        <div class="small text-muted">@apt.SlotDate.ToString("dd/MM/yyyy")</div>
+                                    </td>
+                                    <td>
+                                        @switch (apt.Status)
+                                        {
+                                            case "Confirmed":
+                                                <span class="badge bg-warning text-dark"><i class="bi bi-hourglass-split me-1"></i>Chờ tiếp nhận</span>
+                                                break;
+                                            case "CheckedIn":
+                                                <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Đã Check-in</span>
+                                                @if (apt.CheckedInAt.HasValue)
+                                                {
+                                                    <div class="small text-muted">Lúc: @apt.CheckedInAt.Value.ToLocalTime().ToString("HH:mm")</div>
+                                                }
+                                                break;
+                                            case "NoShow":
+                                                <span class="badge bg-danger"><i class="bi bi-x-circle me-1"></i>Vắng mặt (No-show)</span>
+                                                @if (!string.IsNullOrEmpty(apt.NoShowReason))
+                                                {
+                                                    <div class="small text-danger text-truncate" style="max-width: 150px;" title="@apt.NoShowReason">
+                                                        Lý do: @apt.NoShowReason
+                                                    </div>
+                                                }
+                                                break;
+                                            default:
+                                                <span class="badge bg-secondary">@apt.Status</span>
+                                                break;
+                                        }
+                                    </td>
+                                    <td class="text-center pe-3">
+                                        @if (apt.Status == "Confirmed")
+                                        {
+                                            <div class="btn-group" role="group">
+                                                <button class="btn btn-sm btn-success px-3" @onclick="() => HandleCheckIn(apt)" title="Check-in và đưa vào hàng đợi">
+                                                    <i class="bi bi-check2-circle me-1"></i>Check-in
+                                                </button>
+                                                <button class="btn btn-sm btn-outline-danger" @onclick="() => OpenNoShowModal(apt)" title="Báo bệnh nhân không đến">
+                                                    <i class="bi bi-person-x"></i> Vắng
+                                                </button>
+                                            </div>
+                                        }
+                                        else if (apt.Status == "CheckedIn")
+                                        {
+                                            <span class="text-success small fw-semibold">
+                                                <i class="bi bi-check-all me-1"></i>Sẵn sàng khám
+                                            </span>
+                                        }
+                                        else if (apt.Status == "NoShow")
+                                        {
+                                            <span class="text-muted small">Đã hủy ca khám</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted small">Không khả dụng</span>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+<!-- Modal Báo vắng mặt (No-show) -->
+@if (showNoShowModal && targetAppointment != null)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title">
+                        <i class="bi bi-exclamation-triangle-fill me-2"></i>Xác nhận Bệnh nhân vắng mặt (No-show)
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" @onclick="CloseNoShowModal"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-2">Bạn có chắc chắn muốn đánh dấu bệnh nhân sau vắng mặt không?</p>
+                    <div class="alert alert-light border">
+                        <strong>Mã hẹn:</strong> @targetAppointment.AppointmentCode <br />
+                        <strong>Bệnh nhân:</strong> @targetAppointment.PatientName <br />
+                        <strong>Bác sĩ:</strong> @targetAppointment.DoctorName (@targetAppointment.DepartmentName) <br />
+                        <strong>Giờ khám:</strong> @targetAppointment.StartTime.ToString("HH:mm") (@targetAppointment.SlotDate.ToString("dd/MM/yyyy"))
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Lý do vắng mặt (Bắt buộc theo BR):</label>
+                        <select class="form-select mb-2" @onchange="OnQuickReasonChanged">
+                            <option value="">-- Chọn lý do thường gặp --</option>
+                            <option value="Bệnh nhân không có mặt vào giờ hẹn">Bệnh nhân không có mặt vào giờ hẹn</option>
+                            <option value="Gọi điện không liên lạc được">Gọi điện không liên lạc được</option>
+                            <option value="Bệnh nhân báo bận đột xuất tại thời điểm hẹn">Bệnh nhân báo bận đột xuất tại thời điểm hẹn</option>
+                        </select>
+                        <textarea class="form-control" rows="3" placeholder="Nhập chi tiết lý do vắng mặt..." @bind="noShowModel.Reason"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseNoShowModal">Hủy bỏ</button>
+                    <button type="button" class="btn btn-danger" @onclick="HandleConfirmNoShow" disabled="@(string.IsNullOrWhiteSpace(noShowModel.Reason))">
+                        <i class="bi bi-check-lg me-1"></i> Xác nhận No-show
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+</RoleGuard>
+
+@code {
+    private List<ReceptionAppointmentModel> appointments = new();
+    private bool isLoading = true;
+    private DateOnly? selectedDate;
+    private string searchKeyword = string.Empty;
+    private string selectedStatusFilter = "ALL";
+
+    private string? alertMessage;
+    private bool alertIsSuccess = true;
+
+    private bool showNoShowModal = false;
+    private ReceptionAppointmentModel? targetAppointment;
+    private MarkNoShowModel noShowModel = new();
+
+    private IEnumerable<ReceptionAppointmentModel> FilteredAppointments
+    {
+        get
+        {
+            var result = appointments.AsEnumerable();
+
+            if (selectedStatusFilter != "ALL")
+            {
+                result = result.Where(a => a.Status.Equals(selectedStatusFilter, StringComparison.OrdinalIgnoreCase));
+            }
+
+            return result;
+        }
+    }
+
+    private async Task LoadAppointments()
+    {
+        isLoading = true;
+        try
+        {
+            var result = await ReceptionApi.SearchAppointmentsAsync(searchKeyword, selectedDate);
+            if (result.IsSuccess)
+            {
+                appointments = result.Data ?? new List<ReceptionAppointmentModel>();
+            }
+            else
+            {
+                appointments.Clear();
+                ShowAlert(result.ErrorMessage ?? "Không thể tải danh sách lịch hẹn.", false);
+            }
+        }
+        catch (Exception ex)
+        {
+            ShowAlert("Lỗi khi tải danh sách: " + ex.Message, false);
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task OnDateChanged()
+    {
+        await LoadAppointments();
+    }
+
+    private async Task OnSearchChanged()
+    {
+        await LoadAppointments();
+    }
+
+    private void SetStatusFilter(string status)
+    {
+        selectedStatusFilter = status;
+    }
+
+    private async Task HandleCheckIn(ReceptionAppointmentModel apt)
+    {
+        var result = await ReceptionApi.CheckInAppointmentAsync(apt.AppointmentId);
+        if (result.IsSuccess && result.Data is not null)
+        {
+            ShowAlert($"Check-in thành công cho bệnh nhân {apt.PatientName} (#{apt.AppointmentCode})!", true);
+            apt.Status = result.Data.Status;
+            apt.CheckedInAt = result.Data.CheckedInAt;
+        }
+        else
+        {
+            ShowAlert(result.ErrorMessage ?? "Không thể check-in lịch hẹn.", false);
+        }
+    }
+
+    private void OpenNoShowModal(ReceptionAppointmentModel apt)
+    {
+        targetAppointment = apt;
+        noShowModel = new MarkNoShowModel { Reason = "Bệnh nhân không có mặt vào giờ hẹn" };
+        showNoShowModal = true;
+    }
+
+    private void CloseNoShowModal()
+    {
+        showNoShowModal = false;
+        targetAppointment = null;
+    }
+
+    private void OnQuickReasonChanged(ChangeEventArgs e)
+    {
+        var val = e.Value?.ToString();
+        if (!string.IsNullOrWhiteSpace(val))
+        {
+            noShowModel.Reason = val;
+        }
+    }
+
+    private async Task HandleConfirmNoShow()
+    {
+        if (targetAppointment == null || string.IsNullOrWhiteSpace(noShowModel.Reason)) return;
+
+        var result = await ReceptionApi.MarkNoShowAsync(targetAppointment.AppointmentId, noShowModel.Reason);
+        if (result.IsSuccess && result.Data is not null)
+        {
+            ShowAlert($"Đã đánh dấu lịch hẹn #{targetAppointment.AppointmentCode} là Vắng mặt (No-show).", true);
+            targetAppointment.Status = result.Data.Status;
+            targetAppointment.NoShowAt = result.Data.NoShowAt;
+            targetAppointment.NoShowReason = result.Data.NoShowReason;
+            CloseNoShowModal();
+        }
+        else
+        {
+            ShowAlert(result.ErrorMessage ?? "Không thể đánh dấu vắng mặt.", false);
+        }
+    }
+
+    private void ShowAlert(string message, bool isSuccess)
+    {
+        alertMessage = message;
+        alertIsSuccess = isSuccess;
+    }
+}
+

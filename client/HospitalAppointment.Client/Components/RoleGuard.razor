@@ -1,0 +1,42 @@
+﻿@inject AuthSession Session
+@inject NavigationManager Nav
+
+@if (_allowed)
+{
+    @ChildContent
+}
+else if (_forbidden)
+{
+    <div class="alert alert-danger" role="alert">
+        Bạn không có quyền truy cập trang này.
+    </div>
+}
+
+@code {
+    [Parameter] public string? Role { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter] public EventCallback OnAuthorized { get; set; }
+
+    private bool _allowed;
+    private bool _forbidden;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Session.InitializeAsync();
+
+        if (!Session.IsAuthenticated)
+        {
+            Nav.NavigateToLogin();
+            return;
+        }
+
+        if (Role != null && !Session.IsInRole(Role))
+        {
+            _forbidden = true;
+            return;
+        }
+
+        _allowed = true;
+        await OnAuthorized.InvokeAsync();
+    }
+}

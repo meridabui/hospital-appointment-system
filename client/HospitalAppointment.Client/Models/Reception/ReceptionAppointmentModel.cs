@@ -1,10 +1,9 @@
-namespace HospitalAppointment.Client.Models;
+namespace HospitalAppointment.Client.Models.Reception;
 
-public sealed class ReceptionAppointment
+public class ReceptionAppointmentModel
 {
     public int AppointmentId { get; set; }
     public string AppointmentCode { get; set; } = string.Empty;
-    public string Status { get; set; } = string.Empty;
     public int PatientId { get; set; }
     public string PatientCode { get; set; } = string.Empty;
     public string PatientName { get; set; } = string.Empty;
@@ -17,8 +16,10 @@ public sealed class ReceptionAppointment
     public DateOnly SlotDate { get; set; }
     public TimeOnly StartTime { get; set; }
     public TimeOnly EndTime { get; set; }
+    public string Status { get; set; } = "Pending";
     public string? BookingReason { get; set; }
     public DateTime? CheckedInAt { get; set; }
     public DateTime? NoShowAt { get; set; }
     public string? NoShowReason { get; set; }
 }
+

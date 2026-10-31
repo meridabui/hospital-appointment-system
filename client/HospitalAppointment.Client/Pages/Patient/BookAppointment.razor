@@ -1,0 +1,384 @@
+﻿@page "/book-appointment"
+@inject ApiClient Api
+
+<PageTitle>Đặt lịch khám</PageTitle>
+
+<RoleGuard Role="Patient" OnAuthorized="LoadDepartmentsAsync">
+    <h1 class="h3 mb-3">Đặt lịch khám</h1>
+
+    @if (_step < 5)
+    {
+        <ol class="breadcrumb mb-3">
+            <li class="breadcrumb-item @(_step == 1 ? "active fw-bold" : "")">1. Chọn khoa</li>
+            <li class="breadcrumb-item @(_step == 2 ? "active fw-bold" : "")">2. Chọn bác sĩ</li>
+            <li class="breadcrumb-item @(_step == 3 ? "active fw-bold" : "")">3. Chọn ngày và giờ</li>
+            <li class="breadcrumb-item @(_step == 4 ? "active fw-bold" : "")">4. Xác nhận</li>
+        </ol>
+    }
+
+    @if (!string.IsNullOrEmpty(_error))
+    {
+        <div class="alert alert-danger" role="alert">@_error</div>
+    }
+
+    @if (_busy)
+    {
+        <div class="text-muted mb-2">Đang tải...</div>
+    }
+
+    @* ---------- Bước 1: chọn khoa ---------- *@
+    @if (_step == 1)
+    {
+        <div class="row g-3">
+            @foreach (var d in _departments)
+            {
+                <div class="col-md-4">
+                    <div class="card h-100">
+                        <div class="card-body d-flex flex-column">
+                            <h5 class="card-title">@d.DepartmentName</h5>
+                            <p class="card-text text-muted flex-grow-1">@d.Description</p>
+                            <button class="btn btn-primary" disabled="@_busy" @onclick="() => SelectDepartmentAsync(d)">
+                                Chọn khoa này
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+
+        @if (!_busy && _departments.Count == 0)
+        {
+            <p class="text-muted">Hiện chưa có khoa nào đang hoạt động.</p>
+        }
+    }
+
+    @* ---------- Bước 2: chọn bác sĩ ---------- *@
+    @if (_step == 2 && _department != null)
+    {
+        <h5 class="mb-3">Khoa: @_department.DepartmentName</h5>
+
+        @if (!_busy && _doctors.Count == 0)
+        {
+            <div class="alert alert-info">Khoa này hiện chưa có bác sĩ nào còn lịch khám trống.</div>
+        }
+
+        <div class="row g-3 mb-3">
+            @foreach (var doc in _doctors)
+            {
+                <div class="col-md-6">
+                    <div class="card h-100">
+                        <div class="card-body">
+                            <h5 class="card-title">BS. @doc.FullName</h5>
+                            <p class="mb-1"><span class="text-muted">Chuyên khoa:</span> @(doc.Specialty ?? _department.DepartmentName)</p>
+                            <p class="mb-1"><span class="text-muted">Khung giờ còn trống:</span> @doc.AvailableSlotCount</p>
+                            @if (doc.NextAvailableDate.HasValue)
+                            {
+                                <p class="mb-3"><span class="text-muted">Lịch gần nhất:</span> @ViVn.FormatDate(doc.NextAvailableDate.Value)</p>
+                            }
+                            <button class="btn btn-primary" disabled="@_busy" @onclick="() => SelectDoctorAsync(doc)">
+                                Chọn bác sĩ này
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+
+        <button class="btn btn-outline-secondary" disabled="@_busy" @onclick="Back">Quay lại</button>
+    }
+
+    @* ---------- Bước 3: chọn ngày và giờ ---------- *@
+    @if (_step == 3 && _doctor != null && _department != null)
+    {
+        <h5 class="mb-1">BS. @_doctor.FullName</h5>
+        <p class="text-muted">@_department.DepartmentName @(string.IsNullOrEmpty(_doctor.Specialty) ? "" : "- " + _doctor.Specialty)</p>
+
+        <h6>Lịch làm việc (các ngày còn khung giờ trống)</h6>
+        @if (!_busy && _dates.Count == 0)
+        {
+            <div class="alert alert-info">Bác sĩ này hiện không còn khung giờ trống. Vui lòng chọn bác sĩ khác.</div>
+        }
+
+        <div class="d-flex flex-wrap gap-2 mb-3">
+            @foreach (var d in _dates)
+            {
+                <button class="btn @(_date?.Date == d.Date ? "btn-primary" : "btn-outline-primary")"
+                        disabled="@_busy" @onclick="() => SelectDateAsync(d)">
+                    @ViVn.FormatDate(d.Date)<br />
+                    <small>@d.AvailableSlotCount khung giờ</small>
+                </button>
+            }
+        </div>
+
+        @if (_date != null)
+        {
+            <h6>Khung giờ trống - @ViVn.FormatDate(_date.Date)</h6>
+
+            @if (!_busy && _slots.Count == 0)
+            {
+                <p class="text-muted">Ngày này không còn khung giờ trống.</p>
+            }
+
+            <div class="d-flex flex-wrap gap-2 mb-3">
+                @foreach (var s in _slots)
+                {
+                    <button class="btn btn-outline-success" disabled="@_busy" @onclick="() => SelectSlot(s)">
+                        @ViVn.FormatTime(s.StartTime) - @ViVn.FormatTime(s.EndTime)
+                    </button>
+                }
+            </div>
+        }
+
+        <button class="btn btn-outline-secondary" disabled="@_busy" @onclick="Back">Quay lại</button>
+    }
+
+    @* ---------- Bước 4: kiểm tra lại và gửi yêu cầu ---------- *@
+    @if (_step == 4 && _department != null && _doctor != null && _date != null && _slot != null)
+    {
+        <h5 class="mb-3">Kiểm tra lại thông tin đặt lịch</h5>
+
+        <dl class="row">
+            <dt class="col-sm-3">Khoa</dt>
+            <dd class="col-sm-9">@_department.DepartmentName</dd>
+            <dt class="col-sm-3">Bác sĩ</dt>
+            <dd class="col-sm-9">BS. @_doctor.FullName</dd>
+            <dt class="col-sm-3">Ngày khám</dt>
+            <dd class="col-sm-9">@ViVn.FormatDate(_slot.Date)</dd>
+            <dt class="col-sm-3">Giờ khám</dt>
+            <dd class="col-sm-9">@ViVn.FormatTime(_slot.StartTime) - @ViVn.FormatTime(_slot.EndTime)</dd>
+        </dl>
+
+        <div class="mb-3">
+            <label class="form-label" for="reason">Lý do khám (không bắt buộc)</label>
+            <textarea id="reason" class="form-control" rows="3" maxlength="500" @bind="_reason"></textarea>
+        </div>
+
+        <button class="btn btn-outline-secondary" disabled="@_busy" @onclick="Back">Quay lại</button>
+        <button class="btn btn-primary" disabled="@_busy" @onclick="SubmitAsync">
+            @(_busy ? "Đang gửi..." : "Submit Booking")
+        </button>
+    }
+
+    @* ---------- Bước 5: kết quả ---------- *@
+    @if (_step == 5 && _result != null)
+    {
+        <div class="alert alert-success" role="alert">
+            <h5 class="alert-heading">Đã gửi yêu cầu đặt lịch</h5>
+            <p class="mb-0">@_result.Message</p>
+        </div>
+
+        <dl class="row">
+            <dt class="col-sm-3">Mã lịch hẹn</dt>
+            <dd class="col-sm-9"><strong>@_result.AppointmentCode</strong></dd>
+            <dt class="col-sm-3">Trạng thái</dt>
+            <dd class="col-sm-9">
+                <span class="badge bg-warning text-dark">@_result.Status</span>
+                <small class="text-muted ms-2">Chờ bệnh viện xác nhận, chưa phải lịch đã xác nhận.</small>
+            </dd>
+            <dt class="col-sm-3">Khoa</dt>
+            <dd class="col-sm-9">@_result.DepartmentName</dd>
+            <dt class="col-sm-3">Bác sĩ</dt>
+            <dd class="col-sm-9">BS. @_result.DoctorName</dd>
+            <dt class="col-sm-3">Thời gian</dt>
+            <dd class="col-sm-9">@ViVn.FormatDate(_result.Date), @ViVn.FormatTime(_result.StartTime) - @ViVn.FormatTime(_result.EndTime)</dd>
+            @if (!string.IsNullOrEmpty(_result.BookingReason))
+            {
+                <dt class="col-sm-3">Lý do khám</dt>
+                <dd class="col-sm-9">@_result.BookingReason</dd>
+            }
+        </dl>
+
+        <button class="btn btn-primary" @onclick="ResetAsync">Đặt lịch khác</button>
+    }
+</RoleGuard>
+
+@code {
+    private int _step = 1; // 1 khoa, 2 bác sĩ, 3 ngày giờ, 4 xác nhận, 5 kết quả
+    private bool _busy;
+    private string? _error;
+    private string? _reason;
+
+    private List<DepartmentDto> _departments = new();
+    private List<DoctorListItemDto> _doctors = new();
+    private List<AvailableDateDto> _dates = new();
+    private List<SlotDto> _slots = new();
+
+    private DepartmentDto? _department;
+    private DoctorListItemDto? _doctor;
+    private AvailableDateDto? _date;
+    private SlotDto? _slot;
+    private AppointmentResponse? _result;
+
+    private async Task LoadDepartmentsAsync()
+    {
+        _busy = true;
+        _error = null;
+
+        var res = await Api.GetAsync<List<DepartmentDto>>("api/departments");
+        _busy = false;
+
+        if (res.IsSuccess) _departments = res.Data ?? new();
+        else _error = res.ErrorMessage;
+    }
+
+    private async Task SelectDepartmentAsync(DepartmentDto department)
+    {
+        _busy = true;
+        _error = null;
+
+        var res = await Api.GetAsync<List<DoctorListItemDto>>($"api/departments/{department.DepartmentId}/doctors");
+        _busy = false;
+
+        if (!res.IsSuccess) { _error = res.ErrorMessage; return; }
+
+        _department = department;
+        _doctors = res.Data ?? new();
+        _step = 2;
+    }
+
+    private async Task SelectDoctorAsync(DoctorListItemDto doctor)
+    {
+        _busy = true;
+        _error = null;
+
+        var res = await Api.GetAsync<List<AvailableDateDto>>(
+            $"api/doctors/{doctor.DoctorId}/available-dates?departmentId={_department!.DepartmentId}");
+        _busy = false;
+
+        if (!res.IsSuccess) { _error = res.ErrorMessage; return; }
+
+        _doctor = doctor;
+        _dates = res.Data ?? new();
+        _date = null;
+        _slots = new();
+        _slot = null;
+        _step = 3;
+    }
+
+    private async Task SelectDateAsync(AvailableDateDto date)
+    {
+        _busy = true;
+        _error = null;
+
+        var ok = await LoadSlotsAsync(date);
+        _busy = false;
+
+        if (ok) _date = date;
+    }
+
+    private async Task<bool> LoadSlotsAsync(AvailableDateDto date)
+    {
+        var res = await Api.GetAsync<List<SlotDto>>(
+            $"api/doctors/{_doctor!.DoctorId}/slots?departmentId={_department!.DepartmentId}&date={date.Date:yyyy-MM-dd}");
+
+        if (!res.IsSuccess) { _error = res.ErrorMessage; return false; }
+
+        _slots = res.Data ?? new();
+        return true;
+    }
+
+    private void SelectSlot(SlotDto slot)
+    {
+        _error = null;
+        _slot = slot;
+        _step = 4;
+    }
+
+    private async Task SubmitAsync()
+    {
+        _busy = true;
+        _error = null;
+
+        var request = new CreateAppointmentRequest
+        {
+            DepartmentId = _department!.DepartmentId,
+            DoctorId = _doctor!.DoctorId,
+            ScheduleSlotId = _slot!.ScheduleSlotId,
+            BookingReason = string.IsNullOrWhiteSpace(_reason) ? null : _reason.Trim()
+        };
+
+        var res = await Api.PostAsync<CreateAppointmentRequest, AppointmentResponse>("api/appointments", request);
+
+        if (res.IsSuccess)
+        {
+            _busy = false;
+            _result = res.Data;
+            _step = 5;
+            return;
+        }
+
+        _error = res.ErrorMessage;
+
+        // 409: slot vừa bị người khác đặt (hoặc bạn đã có lịch trùng) -> tải lại và cho chọn lại
+        if (res.StatusCode == 409)
+        {
+            await RefreshAvailabilityAsync();
+            _slot = null;
+            _step = 3;
+        }
+
+        _busy = false;
+    }
+
+    private async Task RefreshAvailabilityAsync()
+    {
+        var res = await Api.GetAsync<List<AvailableDateDto>>(
+            $"api/doctors/{_doctor!.DoctorId}/available-dates?departmentId={_department!.DepartmentId}");
+        if (res.IsSuccess) _dates = res.Data ?? new();
+
+        var current = _date == null ? null : _dates.FirstOrDefault(x => x.Date == _date.Date);
+        if (current != null)
+        {
+            _date = current;
+            await LoadSlotsAsync(current);
+        }
+        else
+        {
+            _date = null;
+            _slots = new();
+        }
+    }
+
+    private void Back()
+    {
+        _error = null;
+
+        switch (_step)
+        {
+            case 2:
+                _step = 1;
+                _department = null;
+                _doctors = new();
+                break;
+            case 3:
+                _step = 2;
+                _doctor = null;
+                _dates = new();
+                _date = null;
+                _slots = new();
+                _slot = null;
+                break;
+            case 4:
+                _step = 3;
+                _slot = null;
+                break;
+        }
+    }
+
+    private async Task ResetAsync()
+    {
+        _step = 1;
+        _error = null;
+        _reason = null;
+        _department = null;
+        _doctor = null;
+        _date = null;
+        _slot = null;
+        _result = null;
+        _doctors = new();
+        _dates = new();
+        _slots = new();
+
+        await LoadDepartmentsAsync();
+    }
+}

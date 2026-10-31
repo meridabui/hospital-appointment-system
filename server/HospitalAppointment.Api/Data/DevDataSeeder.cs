@@ -12,6 +12,7 @@ public static class DevDataSeeder
     {
         await SeedStaticDataAsync(db);
         await SeedSlotsAsync(db);
+        await SeedReceptionDemoAsync(db);
     }
 
     private static async Task SeedStaticDataAsync(HospitalAppointmentDbContext db)
@@ -92,6 +93,96 @@ public static class DevDataSeeder
                 }
             }
         }
+
+        await db.SaveChangesAsync();
+    }
+
+    private static async Task SeedReceptionDemoAsync(HospitalAppointmentDbContext db)
+    {
+        const string checkInCode = "AP-DEMO-CHECKIN";
+        const string noShowCode = "AP-DEMO-NOSHOW";
+
+        if (await db.Appointments.AnyAsync(a =>
+                a.AppointmentCode == checkInCode || a.AppointmentCode == noShowCode))
+        {
+            return;
+        }
+
+        var receptionist = await db.Users.SingleAsync(u => u.Username == "receptionist");
+        var doctor = await db.Doctors
+            .Include(d => d.DepartmentAssignments)
+            .FirstAsync(d => d.DoctorStatus == DoctorStatus.Active && d.DepartmentAssignments.Any());
+        var departmentId = doctor.DepartmentAssignments.First().DepartmentId;
+        var today = DateOnly.FromDateTime(ClockHelper.VietnamNow);
+
+        var patient = await db.Patients.SingleOrDefaultAsync(p => p.PatientCode == "PT-DEMO-RECEPTION");
+        if (patient is null)
+        {
+            patient = new Patient
+            {
+                PatientCode = "PT-DEMO-RECEPTION",
+                FullName = "Bệnh nhân Demo Tiếp nhận",
+                Phone = "0900999999",
+                DateOfBirth = new DateOnly(1990, 1, 15),
+                Gender = "Other",
+                Address = "Dữ liệu dùng để kiểm thử Development",
+                CreatedAt = DateTime.UtcNow
+            };
+            db.Patients.Add(patient);
+        }
+
+        var checkInSlot = new DoctorScheduleSlot
+        {
+            DoctorId = doctor.DoctorId,
+            DepartmentId = departmentId,
+            SlotDate = today,
+            StartTime = new TimeOnly(17, 0),
+            EndTime = new TimeOnly(17, 30),
+            IsActive = true,
+            CreatedBy = receptionist.UserId,
+            CreatedAt = DateTime.UtcNow
+        };
+        var noShowSlot = new DoctorScheduleSlot
+        {
+            DoctorId = doctor.DoctorId,
+            DepartmentId = departmentId,
+            SlotDate = today.AddDays(-1),
+            StartTime = new TimeOnly(9, 0),
+            EndTime = new TimeOnly(9, 30),
+            IsActive = true,
+            CreatedBy = receptionist.UserId,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        db.Appointments.AddRange(
+            new Appointment
+            {
+                AppointmentCode = checkInCode,
+                Patient = patient,
+                DoctorId = doctor.DoctorId,
+                DepartmentId = departmentId,
+                ScheduleSlot = checkInSlot,
+                Status = AppointmentStatus.Confirmed,
+                BookingReason = "Lịch demo dùng để kiểm thử Check-in trên web",
+                ConfirmedAt = DateTime.UtcNow,
+                ConfirmedBy = receptionist.UserId,
+                CreatedAt = DateTime.UtcNow,
+                IsActiveBooking = true
+            },
+            new Appointment
+            {
+                AppointmentCode = noShowCode,
+                Patient = patient,
+                DoctorId = doctor.DoctorId,
+                DepartmentId = departmentId,
+                ScheduleSlot = noShowSlot,
+                Status = AppointmentStatus.Confirmed,
+                BookingReason = "Lịch demo dùng để kiểm thử No-show trên web",
+                ConfirmedAt = DateTime.UtcNow,
+                ConfirmedBy = receptionist.UserId,
+                CreatedAt = DateTime.UtcNow,
+                IsActiveBooking = true
+            });
 
         await db.SaveChangesAsync();
     }
