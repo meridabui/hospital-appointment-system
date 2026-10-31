@@ -1,0 +1,327 @@
+@page "/reception"
+@using HospitalAppointment.Client.Models
+@using HospitalAppointment.Client.Services
+@inject ReceptionApiClient ReceptionApi
+
+<PageTitle>Patient Reception</PageTitle>
+
+<div class="reception-page">
+    <div class="page-heading">
+        <div>
+            <p class="eyebrow">Reception desk</p>
+            <h1>Patient reception</h1>
+            <p class="text-secondary mb-0">Find confirmed appointments, check patients in, or record a no-show.</p>
+        </div>
+        <button class="btn btn-outline-primary" @onclick="SearchAsync" disabled="@_isLoading">Refresh</button>
+    </div>
+
+    <div class="card search-card">
+        <div class="card-body">
+            <div class="row g-3 align-items-end">
+                <div class="col-lg-5">
+                    <label class="form-label" for="appointment-search">Appointment code, phone, or patient name</label>
+                    <input id="appointment-search" class="form-control" @bind="_search" @bind:event="oninput"
+                           @onkeydown="HandleSearchKeyDown" placeholder="Example: AP261029000001" />
+                </div>
+                <div class="col-md-4 col-lg-3">
+                    <label class="form-label" for="appointment-date">Appointment date</label>
+                    <InputDate id="appointment-date" class="form-control" @bind-Value="_date" />
+                </div>
+                <div class="col-md-4 col-lg-2">
+                    <label class="form-label" for="appointment-status">Status</label>
+                    <select id="appointment-status" class="form-select" @bind="_status">
+                        <option value="">All statuses</option>
+                        <option value="Confirmed">Confirmed</option>
+                        <option value="CheckedIn">Checked in</option>
+                        <option value="NoShow">No-show</option>
+                    </select>
+                </div>
+                <div class="col-md-4 col-lg-2 d-grid">
+                    <button class="btn btn-primary" @onclick="SearchAsync" disabled="@_isLoading">
+                        @(_isLoading ? "Searching..." : "Search")
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(_message))
+    {
+        <div class="alert @(_isError ? "alert-danger" : "alert-success")" role="alert">@_message</div>
+    }
+
+    <div class="card results-card">
+        <div class="card-header">
+            <strong>Appointments</strong>
+            <span class="text-secondary">@_appointments.Count result(s)</span>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>Appointment</th>
+                        <th>Patient</th>
+                        <th>Doctor / Department</th>
+                        <th>Scheduled time</th>
+                        <th>Status</th>
+                        <th class="text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (_isLoading)
+                    {
+                        <tr><td colspan="6" class="empty-state">Loading appointments...</td></tr>
+                    }
+                    else if (_appointments.Count == 0)
+                    {
+                        <tr><td colspan="6" class="empty-state">No appointments found.</td></tr>
+                    }
+                    else
+                    {
+                        @foreach (var appointment in _appointments)
+                        {
+                            <tr>
+                                <td>
+                                    <strong>@appointment.AppointmentCode</strong>
+                                    @if (!string.IsNullOrWhiteSpace(appointment.BookingReason))
+                                    {
+                                        <small class="d-block text-secondary">@appointment.BookingReason</small>
+                                    }
+                                </td>
+                                <td>
+                                    <strong>@appointment.PatientName</strong>
+                                    <small class="d-block text-secondary">@appointment.PatientCode · @(appointment.PatientPhone ?? "No phone")</small>
+                                    @if (appointment.PatientDateOfBirth.HasValue || !string.IsNullOrWhiteSpace(appointment.PatientGender))
+                                    {
+                                        <small class="d-block text-secondary">
+                                            DOB: @(appointment.PatientDateOfBirth?.ToString("dd/MM/yyyy") ?? "—") · @(appointment.PatientGender ?? "—")
+                                        </small>
+                                    }
+                                </td>
+                                <td>
+                                    @appointment.DoctorName
+                                    <small class="d-block text-secondary">
+                                        @appointment.DepartmentName@(string.IsNullOrWhiteSpace(appointment.DoctorSpecialty) ? string.Empty : $" · {appointment.DoctorSpecialty}")
+                                    </small>
+                                </td>
+                                <td>
+                                    @appointment.SlotDate.ToString("dd/MM/yyyy")
+                                    <small class="d-block text-secondary">@appointment.StartTime.ToString("HH:mm")–@appointment.EndTime.ToString("HH:mm")</small>
+                                </td>
+                                <td><span class="status-badge @StatusClass(appointment.Status)">@StatusLabel(appointment.Status)</span></td>
+                                <td>
+                                    <div class="action-buttons">
+                                        <button class="btn btn-sm btn-primary" disabled="@(appointment.Status != "Confirmed" || _isMutating)"
+                                                @onclick="() => CheckInAsync(appointment)">Check in</button>
+                                        <button class="btn btn-sm btn-outline-danger" disabled="@(appointment.Status != "Confirmed" || _isMutating)"
+                                                @onclick="() => OpenNoShow(appointment)">No-show</button>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+@if (_noShowAppointment is not null)
+{
+    <div class="dialog-backdrop" role="presentation">
+        <div class="confirmation-dialog" role="dialog" aria-modal="true" aria-labelledby="no-show-title">
+            <h2 id="no-show-title">Mark patient as no-show?</h2>
+            <p>
+                <strong>@_noShowAppointment.PatientName</strong> — @_noShowAppointment.AppointmentCode<br />
+                @_noShowAppointment.SlotDate.ToString("dd/MM/yyyy") at @_noShowAppointment.StartTime.ToString("HH:mm")
+            </p>
+            <label class="form-label" for="no-show-reason">Reason <span class="text-danger">*</span></label>
+            <textarea id="no-show-reason" class="form-control" rows="3" maxlength="500" @bind="_noShowReason"
+                      placeholder="Enter the reason for recording a no-show"></textarea>
+            @if (_noShowReasonInvalid)
+            {
+                <div class="text-danger mt-1">The reason is required.</div>
+            }
+            <div class="dialog-actions">
+                <button class="btn btn-outline-secondary" @onclick="CloseNoShow" disabled="@_isMutating">Cancel</button>
+                <button class="btn btn-danger" @onclick="ConfirmNoShowAsync" disabled="@_isMutating">
+                    @(_isMutating ? "Saving..." : "Confirm no-show")
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private readonly List<ReceptionAppointment> _appointments = [];
+    private string? _search;
+    private DateTime? _date = DateTime.Today;
+    private string _status = "Confirmed";
+    private bool _isLoading;
+    private bool _isMutating;
+    private bool _isError;
+    private string? _message;
+    private ReceptionAppointment? _noShowAppointment;
+    private string _noShowReason = string.Empty;
+    private bool _noShowReasonInvalid;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await SearchAsync();
+    }
+
+    private async Task SearchAsync()
+    {
+        _isLoading = true;
+        ClearMessage();
+
+        try
+        {
+            DateOnly? date = _date.HasValue ? DateOnly.FromDateTime(_date.Value) : null;
+            var result = await ReceptionApi.SearchAsync(_search, date, _status);
+            _appointments.Clear();
+            if (result.IsSuccess && result.Value is not null)
+            {
+                _appointments.AddRange(result.Value);
+            }
+            else
+            {
+                ShowError(result.Error ?? "Unable to load appointments.");
+            }
+        }
+        catch (HttpRequestException)
+        {
+            ShowError("Cannot connect to the API server. Check that the server is running.");
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task CheckInAsync(ReceptionAppointment appointment)
+    {
+        _isMutating = true;
+        ClearMessage();
+        try
+        {
+            var result = await ReceptionApi.CheckInAsync(appointment.AppointmentId);
+            if (result.IsSuccess && result.Value is not null)
+            {
+                ReplaceAppointment(result.Value);
+                ShowSuccess($"{appointment.PatientName} checked in successfully.");
+            }
+            else
+            {
+                ShowError(result.Error ?? "Unable to check in this patient.");
+            }
+        }
+        catch (HttpRequestException)
+        {
+            ShowError("Cannot connect to the API server.");
+        }
+        finally
+        {
+            _isMutating = false;
+        }
+    }
+
+    private void OpenNoShow(ReceptionAppointment appointment)
+    {
+        _noShowAppointment = appointment;
+        _noShowReason = string.Empty;
+        _noShowReasonInvalid = false;
+        ClearMessage();
+    }
+
+    private void CloseNoShow()
+    {
+        _noShowAppointment = null;
+        _noShowReason = string.Empty;
+        _noShowReasonInvalid = false;
+    }
+
+    private async Task ConfirmNoShowAsync()
+    {
+        _noShowReasonInvalid = string.IsNullOrWhiteSpace(_noShowReason);
+        if (_noShowReasonInvalid || _noShowAppointment is null)
+        {
+            return;
+        }
+
+        _isMutating = true;
+        var appointment = _noShowAppointment;
+        try
+        {
+            var result = await ReceptionApi.MarkNoShowAsync(appointment.AppointmentId, _noShowReason.Trim());
+            if (result.IsSuccess && result.Value is not null)
+            {
+                ReplaceAppointment(result.Value);
+                CloseNoShow();
+                ShowSuccess($"{appointment.PatientName} was marked as no-show.");
+            }
+            else
+            {
+                ShowError(result.Error ?? "Unable to mark this appointment as no-show.");
+            }
+        }
+        catch (HttpRequestException)
+        {
+            ShowError("Cannot connect to the API server.");
+        }
+        finally
+        {
+            _isMutating = false;
+        }
+    }
+
+    private void ReplaceAppointment(ReceptionAppointment updated)
+    {
+        var index = _appointments.FindIndex(item => item.AppointmentId == updated.AppointmentId);
+        if (index >= 0)
+        {
+            _appointments[index] = updated;
+        }
+    }
+
+    private async Task HandleSearchKeyDown(KeyboardEventArgs args)
+    {
+        if (args.Key == "Enter")
+        {
+            await SearchAsync();
+        }
+    }
+
+    private static string StatusLabel(string status) => status switch
+    {
+        "CheckedIn" => "Checked in",
+        "NoShow" => "No-show",
+        _ => status
+    };
+
+    private static string StatusClass(string status) => status switch
+    {
+        "Confirmed" => "status-confirmed",
+        "CheckedIn" => "status-checked-in",
+        "NoShow" => "status-no-show",
+        _ => "status-default"
+    };
+
+    private void ShowSuccess(string message)
+    {
+        _message = message;
+        _isError = false;
+    }
+
+    private void ShowError(string message)
+    {
+        _message = message;
+        _isError = true;
+    }
+
+    private void ClearMessage()
+    {
+        _message = null;
+        _isError = false;
+    }
+}

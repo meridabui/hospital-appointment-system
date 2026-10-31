@@ -41,4 +41,35 @@ public class Appointment
     public User? CancelledByUser { get; set; }
     public User? NoShowByUser { get; set; }
     public MedicalRecord? MedicalRecord { get; set; }
+
+    public void CheckIn(int receptionistUserId, DateTime checkedInAtUtc)
+    {
+        if (Status != AppointmentStatus.Confirmed)
+        {
+            throw new InvalidOperationException("Only a confirmed appointment can be checked in.");
+        }
+
+        Status = AppointmentStatus.CheckedIn;
+        CheckedInBy = receptionistUserId;
+        CheckedInAt = checkedInAtUtc;
+    }
+
+    public void MarkNoShow(int receptionistUserId, DateTime markedAtUtc, string reason)
+    {
+        if (Status != AppointmentStatus.Confirmed)
+        {
+            throw new InvalidOperationException("Only a confirmed appointment can be marked as no-show.");
+        }
+
+        if (string.IsNullOrWhiteSpace(reason))
+        {
+            throw new ArgumentException("A no-show reason is required.", nameof(reason));
+        }
+
+        Status = AppointmentStatus.NoShow;
+        NoShowBy = receptionistUserId;
+        NoShowAt = markedAtUtc;
+        NoShowReason = reason.Trim();
+        IsActiveBooking = false;
+    }
 }

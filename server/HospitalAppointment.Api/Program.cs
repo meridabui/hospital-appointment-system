@@ -1,4 +1,5 @@
 using HospitalAppointment.Api.Data;
+using HospitalAppointment.Api.Services.Reception;
 using Microsoft.EntityFrameworkCore;
 using HospitalAppointment.Api.Extensions;     
 using HospitalAppointment.Api.Middlewares;     
@@ -11,6 +12,8 @@ builder.Services.AddDbContext<HospitalAppointmentDbContext>(
 // Add services to the container.
 
 builder.Services.AddControllers();
+builder.Services.AddScoped<IReceptionService, ReceptionService>();
+builder.Services.AddScoped<IHospitalClock, SystemHospitalClock>();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
