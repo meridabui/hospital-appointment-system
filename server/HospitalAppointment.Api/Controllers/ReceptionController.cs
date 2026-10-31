@@ -1,111 +1,79 @@
-using HospitalAppointment.Api.Models.DTOs.Reception;
-using HospitalAppointment.Api.Services.Interfaces;
+using HospitalAppointment.Api.Common.Constants;
+using HospitalAppointment.Api.Common.Helpers;
+using HospitalAppointment.Api.DTOs.Reception;
+using HospitalAppointment.Api.Models.Enums;
+using HospitalAppointment.Api.Services.Reception;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace HospitalAppointment.Api.Controllers;
 
 [ApiController]
-[Route("api/[controller]")]
-public class ReceptionController : ControllerBase
+[Route("api/reception/appointments")]
+[Authorize(Roles = RoleNames.Receptionist)]
+public sealed class ReceptionController : ControllerBase
 {
-    private readonly IAppointmentReceptionService _receptionService;
-    private readonly ILogger<ReceptionController> _logger;
+    private readonly IReceptionService _receptionService;
 
-    public ReceptionController(
-        IAppointmentReceptionService receptionService,
-        ILogger<ReceptionController> logger)
+    public ReceptionController(IReceptionService receptionService)
     {
         _receptionService = receptionService;
-        _logger = logger;
     }
 
-    /// <summary>
-    /// Tìm kiếm và tra cứu lịch hẹn tiếp nhận tại quầy (theo mã hẹn, tên BN, SĐT hoặc ngày khám)
-    /// </summary>
-    [HttpGet("appointments")]
-    [ProducesResponseType(typeof(List<ReceptionAppointmentDto>), StatusCodes.Status200OK)]
-    public async Task<IActionResult> SearchAppointments([FromQuery] string? keyword, [FromQuery] DateOnly? date)
+    [HttpGet]
+    public async Task<ActionResult<IReadOnlyList<ReceptionAppointmentDto>>> Search(
+        [FromQuery] string? search,
+        [FromQuery] DateOnly? date,
+        [FromQuery] AppointmentStatus? status,
+        CancellationToken cancellationToken)
     {
-        var result = await _receptionService.SearchAppointmentsAsync(keyword, date);
-        return Ok(result);
+        var appointments = await _receptionService.SearchAsync(search, date, status, cancellationToken);
+        return Ok(appointments);
     }
 
-    /// <summary>
-    /// Tiếp nhận và Check-in cho bệnh nhân khi đến quầy theo Class Diagram 3.7.1.1
-    /// </summary>
-    [HttpPost("appointments/{id:int}/check-in")]
-    [ProducesResponseType(StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> CheckInAppointment(int id, [FromBody] CheckInRequest? request)
+    [HttpPost("{appointmentId:int}/check-in")]
+    public async Task<ActionResult<ReceptionAppointmentDto>> CheckIn(
+        int appointmentId,
+        CancellationToken cancellationToken)
     {
-        try
-        {
-            // Mặc định lấy UserId nếu có truyền, hoặc UserID mặc định của quầy lễ tân (id = 4 theo seed Role Receptionist)
-            int userId = request?.UserId ?? 4;
+        var result = await _receptionService.CheckInAsync(
+            appointmentId,
+            User.GetUserId(),
+            cancellationToken);
 
-            var success = await _receptionService.CheckInAppointmentAsync(id, userId);
-            if (!success)
-            {
-                return BadRequest(new { message = "Không thể thực hiện Check-in cho lịch hẹn này." });
-            }
-
-            return Ok(new { message = "Bệnh nhân đã được Check-in thành công. Đã đưa vào hàng đợi khám." });
-        }
-        catch (KeyNotFoundException ex)
-        {
-            return NotFound(new { message = ex.Message });
-        }
-        catch (InvalidOperationException ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Lỗi khi xử lý check-in lịch hẹn {Id}", id);
-            return StatusCode(StatusCodes.Status500InternalServerError, new { message = "Lỗi hệ thống khi xử lý check-in." });
-        }
+        return ToActionResult(result);
     }
 
-    /// <summary>
-    /// Đánh dấu bệnh nhân vắng mặt (No-show) theo Class Diagram 3.7.1.1
-    /// </summary>
-    [HttpPost("appointments/{id:int}/no-show")]
-    [ProducesResponseType(StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> MarkNoShow(int id, [FromBody] MarkNoShowRequest request)
+    [HttpPost("{appointmentId:int}/no-show")]
+    public async Task<ActionResult<ReceptionAppointmentDto>> MarkNoShow(
+        int appointmentId,
+        [FromBody] MarkNoShowRequest request,
+        CancellationToken cancellationToken)
     {
-        if (!ModelState.IsValid)
+        var result = await _receptionService.MarkNoShowAsync(
+            appointmentId,
+            User.GetUserId(),
+            request.Reason,
+            cancellationToken);
+
+        return ToActionResult(result);
+    }
+
+    private ActionResult<ReceptionAppointmentDto> ToActionResult(ReceptionOperationResult result)
+    {
+        if (result.IsSuccess)
         {
-            return BadRequest(ModelState);
+            return Ok(result.Appointment);
         }
 
-        try
+        var problem = new ProblemDetails { Detail = result.Error };
+        return result.Failure switch
         {
-            int userId = request.UserId ?? 4;
-
-            var success = await _receptionService.MarkNoShowAsync(id, userId, request.Reason);
-            if (!success)
-            {
-                return BadRequest(new { message = "Không thể đánh dấu No-show cho lịch hẹn này." });
-            }
-
-            return Ok(new { message = "Đã đánh dấu lịch hẹn vắng mặt (No-show) thành công." });
-        }
-        catch (KeyNotFoundException ex)
-        {
-            return NotFound(new { message = ex.Message });
-        }
-        catch (InvalidOperationException ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Lỗi khi xử lý No-show lịch hẹn {Id}", id);
-            return StatusCode(StatusCodes.Status500InternalServerError, new { message = "Lỗi hệ thống khi xử lý No-show." });
-        }
+            ReceptionFailure.NotFound => NotFound(problem),
+            ReceptionFailure.ConcurrencyConflict => Conflict(problem),
+            ReceptionFailure.InvalidState => Conflict(problem),
+            ReceptionFailure.TooEarlyForNoShow => BadRequest(problem),
+            _ => BadRequest(problem)
+        };
     }
 }
-

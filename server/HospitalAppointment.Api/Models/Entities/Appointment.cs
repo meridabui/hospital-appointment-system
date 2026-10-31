@@ -45,43 +45,34 @@ public class Appointment
     public User? NoShowByUser { get; set; }
     public MedicalRecord? MedicalRecord { get; set; }
 
-    /// <summary>
-    /// Thao tác Check-in theo Class Diagram 3.7.1.1 (Confirmed -> CheckedIn)
-    /// </summary>
-    public void CheckIn(int userId)
+    public void CheckIn(int receptionistUserId, DateTime checkedInAtUtc)
     {
         if (Status != AppointmentStatus.Confirmed)
         {
-            throw new InvalidOperationException($"Lịch hẹn không thể check-in vì đang ở trạng thái {Status}.");
+            throw new InvalidOperationException("Only a confirmed appointment can be checked in.");
         }
 
         Status = AppointmentStatus.CheckedIn;
-        CheckedInAt = DateTime.UtcNow;
-        CheckedInBy = userId;
+        CheckedInBy = receptionistUserId;
+        CheckedInAt = checkedInAtUtc;
     }
 
-    /// <summary>
-    /// Kiểm tra điều kiện để đánh dấu No-show theo Class Diagram 3.7.1.1
-    /// </summary>
-    public bool CanMarkAsNoShow()
+    public void MarkNoShow(int receptionistUserId, DateTime markedAtUtc, string reason)
     {
-        return Status == AppointmentStatus.Confirmed;
-    }
-
-    /// <summary>
-    /// Thao tác đánh dấu No-show theo Class Diagram 3.7.1.1 (Confirmed -> NoShow)
-    /// </summary>
-    public void MarkAsNoShow(int userId, string? reason = null)
-    {
-        if (!CanMarkAsNoShow())
+        if (Status != AppointmentStatus.Confirmed)
         {
-            throw new InvalidOperationException($"Không thể đánh dấu No-show cho lịch hẹn ở trạng thái {Status}.");
+            throw new InvalidOperationException("Only a confirmed appointment can be marked as no-show.");
+        }
+
+        if (string.IsNullOrWhiteSpace(reason))
+        {
+            throw new ArgumentException("A no-show reason is required.", nameof(reason));
         }
 
         Status = AppointmentStatus.NoShow;
-        NoShowAt = DateTime.UtcNow;
-        NoShowBy = userId;
-        NoShowReason = reason;
+        NoShowBy = receptionistUserId;
+        NoShowAt = markedAtUtc;
+        NoShowReason = reason.Trim();
         IsActiveBooking = false;
     }
 

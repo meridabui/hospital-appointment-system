@@ -135,12 +135,13 @@ builder.Services.AddCors(options =>
 
 // JWT, CORS (policy "Client"), Swagger Authorize, và DI các service/repository còn lại
 builder.Services.AddApplicationServices(builder.Configuration);
+builder.Services.AddScoped<IReceptionService, ReceptionService>();
+builder.Services.AddScoped<IHospitalClock, SystemHospitalClock>();
 
 var app = builder.Build();
 
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 
-// Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();

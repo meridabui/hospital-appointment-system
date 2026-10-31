@@ -5,6 +5,7 @@
 
 <PageTitle>Quầy tiếp nhận bệnh nhân - Hospital Appointment System</PageTitle>
 
+<RoleGuard Role="Receptionist" OnAuthorized="LoadAppointments">
 <div class="container-fluid py-4">
     <!-- Header -->
     <div class="d-flex justify-content-between align-items-center mb-4">
@@ -118,7 +119,7 @@
                                     </td>
                                     <td>
                                         <div class="fw-semibold">@apt.DoctorName</div>
-                                        <div class="small text-muted">@apt.DepartmentName @(string.IsNullOrEmpty(apt.Specialty) ? "" : $"• {apt.Specialty}")</div>
+                                        <div class="small text-muted">@apt.DepartmentName @(string.IsNullOrEmpty(apt.DoctorSpecialty) ? "" : $"• {apt.DoctorSpecialty}")</div>
                                     </td>
                                     <td>
                                         <div class="fw-bold text-dark">
@@ -215,7 +216,7 @@
                         <label class="form-label fw-bold">Lý do vắng mặt (Bắt buộc theo BR):</label>
                         <select class="form-select mb-2" @onchange="OnQuickReasonChanged">
                             <option value="">-- Chọn lý do thường gặp --</option>
-                            <option value="Quá 30 phút giờ hẹn không có mặt">Quá 30 phút giờ hẹn không có mặt</option>
+                            <option value="Bệnh nhân không có mặt vào giờ hẹn">Bệnh nhân không có mặt vào giờ hẹn</option>
                             <option value="Gọi điện không liên lạc được">Gọi điện không liên lạc được</option>
                             <option value="Bệnh nhân báo bận đột xuất tại thời điểm hẹn">Bệnh nhân báo bận đột xuất tại thời điểm hẹn</option>
                         </select>
@@ -232,11 +233,12 @@
         </div>
     </div>
 }
+</RoleGuard>
 
 @code {
     private List<ReceptionAppointmentModel> appointments = new();
     private bool isLoading = true;
-    private DateOnly selectedDate = DateOnly.FromDateTime(DateTime.Now);
+    private DateOnly? selectedDate;
     private string searchKeyword = string.Empty;
     private string selectedStatusFilter = "ALL";
 
@@ -262,17 +264,21 @@
         }
     }
 
-    protected override async Task OnInitializedAsync()
-    {
-        await LoadAppointments();
-    }
-
     private async Task LoadAppointments()
     {
         isLoading = true;
         try
         {
-            appointments = await ReceptionApi.SearchAppointmentsAsync(searchKeyword, selectedDate);
+            var result = await ReceptionApi.SearchAppointmentsAsync(searchKeyword, selectedDate);
+            if (result.IsSuccess)
+            {
+                appointments = result.Data ?? new List<ReceptionAppointmentModel>();
+            }
+            else
+            {
+                appointments.Clear();
+                ShowAlert(result.ErrorMessage ?? "Không thể tải danh sách lịch hẹn.", false);
+            }
         }
         catch (Exception ex)
         {
@@ -302,22 +308,22 @@
     private async Task HandleCheckIn(ReceptionAppointmentModel apt)
     {
         var result = await ReceptionApi.CheckInAppointmentAsync(apt.AppointmentId);
-        if (result.Success)
+        if (result.IsSuccess && result.Data is not null)
         {
             ShowAlert($"Check-in thành công cho bệnh nhân {apt.PatientName} (#{apt.AppointmentCode})!", true);
-            apt.Status = "CheckedIn";
-            apt.CheckedInAt = DateTime.UtcNow;
+            apt.Status = result.Data.Status;
+            apt.CheckedInAt = result.Data.CheckedInAt;
         }
         else
         {
-            ShowAlert(result.Message, false);
+            ShowAlert(result.ErrorMessage ?? "Không thể check-in lịch hẹn.", false);
         }
     }
 
     private void OpenNoShowModal(ReceptionAppointmentModel apt)
     {
         targetAppointment = apt;
-        noShowModel = new MarkNoShowModel { Reason = "Quá 30 phút giờ hẹn không có mặt" };
+        noShowModel = new MarkNoShowModel { Reason = "Bệnh nhân không có mặt vào giờ hẹn" };
         showNoShowModal = true;
     }
 
@@ -341,16 +347,17 @@
         if (targetAppointment == null || string.IsNullOrWhiteSpace(noShowModel.Reason)) return;
 
         var result = await ReceptionApi.MarkNoShowAsync(targetAppointment.AppointmentId, noShowModel.Reason);
-        if (result.Success)
+        if (result.IsSuccess && result.Data is not null)
         {
             ShowAlert($"Đã đánh dấu lịch hẹn #{targetAppointment.AppointmentCode} là Vắng mặt (No-show).", true);
-            targetAppointment.Status = "NoShow";
-            targetAppointment.NoShowReason = noShowModel.Reason;
+            targetAppointment.Status = result.Data.Status;
+            targetAppointment.NoShowAt = result.Data.NoShowAt;
+            targetAppointment.NoShowReason = result.Data.NoShowReason;
             CloseNoShowModal();
         }
         else
         {
-            ShowAlert(result.Message, false);
+            ShowAlert(result.ErrorMessage ?? "Không thể đánh dấu vắng mặt.", false);
         }
     }
 
