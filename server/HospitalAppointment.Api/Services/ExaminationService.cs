@@ -1,8 +1,16 @@
+using HospitalAppointment.Api.Common.Exceptions;
 using HospitalAppointment.Api.DTOs.Examination;
 using HospitalAppointment.Api.Models.Entities;
 using HospitalAppointment.Api.Models.Enums;
 using HospitalAppointment.Api.Repositories;
 using HospitalAppointment.Api.Exceptions;
+using HospitalAppointment.Api.Repositories.Interfaces;
+using Microsoft.EntityFrameworkCore;
+
+// Trong Repositories có 2 IAppointmentRepository (đặt lịch và tiếp nhận).
+// Luồng khám dùng bản Interfaces (có FindByIdAsync, GetByDoctorStatusesAndDateAsync).
+using IAppointmentRepository = HospitalAppointment.Api.Repositories.Interfaces.IAppointmentRepository;
+
 namespace HospitalAppointment.Api.Services;
 
 public class ExaminationService : IExaminationService
@@ -67,6 +75,13 @@ public class ExaminationService : IExaminationService
             throw new UnauthorizedAccessException("This appointment is not assigned to you.");
         }
 
+        if (!appointment.CanStartConsultation())
+        {
+            throw new AppException(
+                $"Không thể bắt đầu khám. Trạng thái hiện tại: {appointment.Status}.",
+                StatusCodes.Status409Conflict);
+        }
+
         appointment.StartConsultation();
 
         _appointmentRepository.AddAuditLog(new AuditLog
@@ -79,7 +94,15 @@ public class ExaminationService : IExaminationService
             CreatedAt = DateTime.UtcNow
         });
 
-        await _appointmentRepository.SaveChangesAsync();
+        try
+        {
+            await _appointmentRepository.SaveChangesAsync();
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            throw new AppException(
+                "Lịch hẹn vừa được thay đổi ở nơi khác. Vui lòng tải lại trang.", StatusCodes.Status409Conflict);
+        }
     }
 
     private async Task<Doctor> GetActiveDoctorAsync(int userId)

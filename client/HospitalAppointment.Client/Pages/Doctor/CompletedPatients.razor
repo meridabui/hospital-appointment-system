@@ -1,0 +1,91 @@
+@page "/doctor/completed-patients"
+@layout DoctorLayout
+@inject MedicalRecordApi MedicalRecordApi
+
+<PageTitle>Completed patients</PageTitle>
+
+<RoleGuard Role="Doctor" OnAuthorized="LoadAsync">
+    <h1 class="mb-3">Completed patients</h1>
+
+    <div class="row g-2 mb-3">
+        <div class="col-md-7">
+            <input class="form-control" placeholder="Search by patient name, patient code or appointment code"
+                   aria-label="Search patients" @bind="_keyword" />
+        </div>
+        <div class="col-md-3">
+            <input class="form-control" type="date" aria-label="Appointment date" @bind="_date" />
+        </div>
+        <div class="col-md-2 d-grid">
+            <button class="btn btn-primary" disabled="@_loading" @onclick="LoadAsync">Search</button>
+        </div>
+    </div>
+
+    @if (_error is not null)
+    {
+        <StatusMessage Type="danger" Text="@_error" />
+    }
+    else if (_loading)
+    {
+        <p>Loading...</p>
+    }
+    else if (_visits.Count == 0)
+    {
+        <StatusMessage Text="No completed patients found." />
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table table-hover align-middle">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Time</th>
+                        <th>Appointment</th>
+                        <th>Patient</th>
+                        <th>Department</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var visit in _visits)
+                    {
+                        <tr>
+                            <td>@visit.SlotDate.ToString("dd/MM/yyyy")</td>
+                            <td>@visit.StartTime.ToString("HH:mm") - @visit.EndTime.ToString("HH:mm")</td>
+                            <td>@visit.AppointmentCode</td>
+                            <td>@visit.PatientName<br /><small class="text-muted">@visit.PatientCode</small></td>
+                            <td>@visit.DepartmentName</td>
+                            <td><a class="btn btn-sm btn-primary" href="doctor/medical-records/@visit.AppointmentId">View EMR</a></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</RoleGuard>
+
+@code {
+    private List<CompletedVisit> _visits = new();
+    private string? _keyword;
+    private DateOnly? _date;
+    private string? _error;
+    private bool _loading = true;
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        _error = null;
+
+        var result = await MedicalRecordApi.GetCompletedAsync(_keyword, _date);
+        _loading = false;
+
+        if (result.IsSuccess)
+        {
+            _visits = result.Data ?? new();
+        }
+        else
+        {
+            _error = result.ErrorMessage;
+        }
+    }
+}

@@ -5,21 +5,20 @@ namespace HospitalAppointment.Client.Api;
 
 public class ExaminationApi
 {
-    private readonly ApiHttpClient _httpClient;
+    private readonly ApiClient _api;
 
-    public ExaminationApi(ApiHttpClient httpClient)
+    public ExaminationApi(ApiClient api)
     {
-        _httpClient = httpClient;
+        _api = api;
     }
 
-    // TODO: remove userId when Auth is merged. The API will read it from the JWT.
-    public Task<List<ReadyPatient>> GetReadyPatientsAsync(int userId)
+    public Task<ApiResult<List<ReadyPatient>>> GetReadyPatientsAsync()
     {
-        return _httpClient.GetAsync<List<ReadyPatient>>($"api/examination/ready-patients?userId={userId}");
+        return _api.GetAsync<List<ReadyPatient>>("api/examination/ready-patients");
     }
 
-    public Task StartConsultationAsync(int appointmentId, int userId)
+    public Task<ApiResult<object>> StartConsultationAsync(int appointmentId)
     {
-        return _httpClient.PostAsync($"api/examination/{appointmentId}/start?userId={userId}");
+        return _api.PostAsync<object>($"api/examination/{appointmentId}/start");
     }
 }

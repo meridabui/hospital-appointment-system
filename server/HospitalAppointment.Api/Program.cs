@@ -1,4 +1,4 @@
-﻿using HospitalAppointment.Api.Data;
+using HospitalAppointment.Api.Data;
 using HospitalAppointment.Api.Extensions;
 using HospitalAppointment.Api.Middlewares;
 using Microsoft.EntityFrameworkCore;
@@ -66,6 +66,12 @@ builder.Services.AddScoped<INurseService, NurseService>();
 
 builder.Services.AddScoped<IDepartmentRepository, DepartmentRepository>();
 builder.Services.AddScoped<IDepartmentService, DepartmentService>();
+// AppointmentRepository hiện thực 2 interface cùng tên ở 2 namespace -> đăng ký cả hai
+builder.Services.AddScoped<HospitalAppointment.Api.Repositories.IAppointmentRepository, AppointmentRepository>();
+builder.Services.AddScoped<HospitalAppointment.Api.Repositories.Interfaces.IAppointmentRepository, AppointmentRepository>();
+builder.Services.AddScoped<IAppointmentReceptionService, AppointmentReceptionService>();
+builder.Services.AddScoped<IMedicalRecordRepository, MedicalRecordRepository>();
+builder.Services.AddScoped<IMedicalRecordService, MedicalRecordService>();
 
 builder.Services.AddScoped<
     IMedicalServiceRepository,
