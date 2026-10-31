@@ -81,4 +81,23 @@ public class Appointment
         NoShowReason = reason;
         IsActiveBooking = false;
     }
+
+    /// <summary>
+    /// Kiểm tra điều kiện để bác sĩ bắt đầu khám (ReadyForConsultation)
+    /// </summary>
+    public bool CanStartConsultation() => Status == AppointmentStatus.ReadyForConsultation;
+
+    /// <summary>
+    /// Bác sĩ bắt đầu khám (ReadyForConsultation -> InConsultation)
+    /// </summary>
+    public void StartConsultation()
+    {
+        if (!CanStartConsultation())
+        {
+            throw new InvalidOperationException($"Không thể bắt đầu khám vì lịch hẹn đang ở trạng thái {Status}.");
+        }
+
+        Status = AppointmentStatus.InConsultation;
+        ConsultationStartedAt = DateTime.UtcNow;
+    }
 }

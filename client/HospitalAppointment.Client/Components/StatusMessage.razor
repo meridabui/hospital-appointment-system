@@ -1,0 +1,6 @@
+<div class="alert alert-@Type" role="alert">@Text</div>
+
+@code {
+    [Parameter] public string Type { get; set; } = "info";
+    [Parameter, EditorRequired] public string Text { get; set; } = null!;
+}
