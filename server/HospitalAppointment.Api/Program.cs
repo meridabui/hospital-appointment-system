@@ -1,5 +1,7 @@
 using HospitalAppointment.Api.Data;
 using Microsoft.EntityFrameworkCore;
+using HospitalAppointment.Api.Extensions;     
+using HospitalAppointment.Api.Middlewares;     
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddDbContext<HospitalAppointmentDbContext>(
@@ -12,8 +14,10 @@ builder.Services.AddControllers();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+builder.Services.AddApplicationServices(builder.Configuration);
 
 var app = builder.Build();
+app.UseMiddleware<ExceptionHandlingMiddleware>();
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
@@ -24,8 +28,14 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
+app.UseCors(ServiceCollectionExtensions.CorsPolicy);
+
+app.UseAuthentication();
+
 app.UseAuthorization();
 
 app.MapControllers();
+
+await app.SeedDevDataAsync();
 
 app.Run();
