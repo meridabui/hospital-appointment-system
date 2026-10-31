@@ -1,9 +1,8 @@
 using HospitalAppointment.Api.DTOs.Examination;
-using HospitalAppointment.Api.Exceptions;
 using HospitalAppointment.Api.Models.Entities;
 using HospitalAppointment.Api.Models.Enums;
 using HospitalAppointment.Api.Repositories;
-
+using HospitalAppointment.Api.Exceptions;
 namespace HospitalAppointment.Api.Services;
 
 public class ExaminationService : IExaminationService

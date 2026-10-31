@@ -1,9 +1,8 @@
-using HospitalAppointment.Api.Models.DTOs.Reception;
+using HospitalAppointment.Api.DTOs.Reception;
 using HospitalAppointment.Api.Models.Entities;
 using HospitalAppointment.Api.Models.Enums;
 using HospitalAppointment.Api.Repositories.Interfaces;
 using HospitalAppointment.Api.Services.Interfaces;
-
 namespace HospitalAppointment.Api.Services.Implementations;
 
 public class AppointmentReceptionService : IAppointmentReceptionService
@@ -18,30 +17,26 @@ public class AppointmentReceptionService : IAppointmentReceptionService
     {
         var appointments = await _appointmentRepository.SearchByCodeOrPatientNameAsync(keyword, date);
 
-        return appointments.Select(a => new ReceptionAppointmentDto
-        {
-            AppointmentId = a.AppointmentId,
-            AppointmentCode = a.AppointmentCode,
-            PatientId = a.PatientId,
-            PatientCode = a.Patient.PatientCode,
-            PatientName = a.Patient.FullName,
-            PatientPhone = a.Patient.Phone,
-            PatientDateOfBirth = a.Patient.DateOfBirth,
-            PatientGender = a.Patient.Gender,
-            DoctorId = a.DoctorId,
-            DoctorName = a.Doctor.Staff?.User?.FullName ?? "Bác sĩ chưa cập nhật",
-            Specialty = a.Doctor.Specialty,
-            DepartmentName = a.Department?.DepartmentName ?? "Chưa phân khoa",
-            SlotDate = a.ScheduleSlot.SlotDate,
-            StartTime = a.ScheduleSlot.StartTime,
-            EndTime = a.ScheduleSlot.EndTime,
-            Status = a.Status,
-            BookingReason = a.BookingReason,
-            CheckedInAt = a.CheckedInAt,
-            CheckedInByName = a.CheckedInByUser?.FullName,
-            NoShowAt = a.NoShowAt,
-            NoShowReason = a.NoShowReason
-        }).ToList();
+        return appointments.Select(a => new ReceptionAppointmentDto(
+       a.AppointmentId,
+       a.AppointmentCode,
+       a.Status.ToString(),
+       a.PatientId,
+       a.Patient.PatientCode,
+       a.Patient.FullName,
+       a.Patient.Phone,
+       a.Patient.DateOfBirth,
+       a.Patient.Gender,
+       a.Doctor.Staff?.User?.FullName ?? "Bác sĩ chưa cập nhật",
+       a.Doctor.Specialty,
+       a.Department?.DepartmentName ?? "Chưa phân khoa",
+       a.ScheduleSlot.SlotDate,
+       a.ScheduleSlot.StartTime,
+       a.ScheduleSlot.EndTime,
+       a.BookingReason,
+       a.CheckedInAt,
+       a.NoShowAt,
+       a.NoShowReason)).ToList();
     }
 
     public bool ValidateCheckInEligibility(Appointment appointment)
@@ -64,8 +59,7 @@ public class AppointmentReceptionService : IAppointmentReceptionService
         }
 
         // Gọi phương thức Domain của Entity theo đúng Class Diagram 3.7.1.1
-        appointment.CheckIn(userId);
-
+        appointment.CheckIn(userId, DateTime.UtcNow);
         await _appointmentRepository.UpdateAsync(appointment);
         return await _appointmentRepository.SaveChangesAsync();
     }
