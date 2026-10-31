@@ -71,13 +71,13 @@ public class AppointmentReceptionService : IAppointmentReceptionService
             throw new KeyNotFoundException($"Không tìm thấy lịch hẹn với mã ID {id}.");
         }
 
-        if (!appointment.CanMarkAsNoShow()) 
+        if (appointment.Status != AppointmentStatus.Confirmed)
         {
             throw new InvalidOperationException($"Không thể đánh dấu vắng mặt cho lịch hẹn #{appointment.AppointmentCode} vì đang ở trạng thái '{appointment.Status}'.");
         }
 
         // Gọi phương thức Domain của Entity theo đúng Class Diagram 3.7.1.1
-        appointment.MarkAsNoShow(userId, reason);
+        appointment.MarkNoShow(userId, DateTime.UtcNow, reason);
 
         await _appointmentRepository.UpdateAsync(appointment);
         return await _appointmentRepository.SaveChangesAsync();
