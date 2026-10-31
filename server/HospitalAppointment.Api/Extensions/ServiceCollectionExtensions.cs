@@ -85,6 +85,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ICatalogService, CatalogService>();
         services.AddScoped<IPatientService, PatientService>();
         services.AddScoped<IBookingService, BookingService>();
+        services.AddScoped<IExaminationService, ExaminationService>();
         return services;
     }
 }
