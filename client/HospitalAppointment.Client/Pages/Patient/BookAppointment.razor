@@ -1,5 +1,8 @@
 ﻿@page "/book-appointment"
+@using HospitalAppointment.Client.Models
+@using HospitalAppointment.Client.Core
 @inject ApiClient Api
+
 
 <PageTitle>Đặt lịch khám</PageTitle>
 
@@ -155,7 +158,7 @@
 
         <button class="btn btn-outline-secondary" disabled="@_busy" @onclick="Back">Quay lại</button>
         <button class="btn btn-primary" disabled="@_busy" @onclick="SubmitAsync">
-            @(_busy ? "Đang gửi..." : "Submit Booking")
+            @(_busy ? "Đang gửi..." : "Xác nhận đặt lịch")
         </button>
     }
 
@@ -193,6 +196,8 @@
 </RoleGuard>
 
 @code {
+    private const string GenericError = "Đã xảy ra lỗi khi xử lý dữ liệu. Vui lòng thử lại.";
+
     private int _step = 1; // 1 khoa, 2 bác sĩ, 3 ngày giờ, 4 xác nhận, 5 kết quả
     private bool _busy;
     private string? _error;
@@ -214,11 +219,21 @@
         _busy = true;
         _error = null;
 
-        var res = await Api.GetAsync<List<DepartmentDto>>("api/departments");
-        _busy = false;
+        try
+        {
+            var res = await Api.GetAsync<List<DepartmentDto>>("api/departments");
 
-        if (res.IsSuccess) _departments = res.Data ?? new();
-        else _error = res.ErrorMessage;
+            if (res.IsSuccess) _departments = res.Data ?? new();
+            else _error = res.ErrorMessage;
+        }
+        catch (Exception)
+        {
+            _error = GenericError;
+        }
+        finally
+        {
+            _busy = false; // luôn bỏ trạng thái "Đang tải" kể cả khi có exception
+        }
     }
 
     private async Task SelectDepartmentAsync(DepartmentDto department)
@@ -226,14 +241,24 @@
         _busy = true;
         _error = null;
 
-        var res = await Api.GetAsync<List<DoctorListItemDto>>($"api/departments/{department.DepartmentId}/doctors");
-        _busy = false;
+        try
+        {
+            var res = await Api.GetAsync<List<DoctorListItemDto>>($"api/departments/{department.DepartmentId}/doctors");
 
-        if (!res.IsSuccess) { _error = res.ErrorMessage; return; }
+            if (!res.IsSuccess) { _error = res.ErrorMessage; return; }
 
-        _department = department;
-        _doctors = res.Data ?? new();
-        _step = 2;
+            _department = department;
+            _doctors = res.Data ?? new();
+            _step = 2;
+        }
+        catch (Exception)
+        {
+            _error = GenericError;
+        }
+        finally
+        {
+            _busy = false;
+        }
     }
 
     private async Task SelectDoctorAsync(DoctorListItemDto doctor)
@@ -241,18 +266,28 @@
         _busy = true;
         _error = null;
 
-        var res = await Api.GetAsync<List<AvailableDateDto>>(
-            $"api/doctors/{doctor.DoctorId}/available-dates?departmentId={_department!.DepartmentId}");
-        _busy = false;
+        try
+        {
+            var res = await Api.GetAsync<List<AvailableDateDto>>(
+                $"api/doctors/{doctor.DoctorId}/available-dates?departmentId={_department!.DepartmentId}");
 
-        if (!res.IsSuccess) { _error = res.ErrorMessage; return; }
+            if (!res.IsSuccess) { _error = res.ErrorMessage; return; }
 
-        _doctor = doctor;
-        _dates = res.Data ?? new();
-        _date = null;
-        _slots = new();
-        _slot = null;
-        _step = 3;
+            _doctor = doctor;
+            _dates = res.Data ?? new();
+            _date = null;
+            _slots = new();
+            _slot = null;
+            _step = 3;
+        }
+        catch (Exception)
+        {
+            _error = GenericError;
+        }
+        finally
+        {
+            _busy = false;
+        }
     }
 
     private async Task SelectDateAsync(AvailableDateDto date)
@@ -260,16 +295,27 @@
         _busy = true;
         _error = null;
 
-        var ok = await LoadSlotsAsync(date);
-        _busy = false;
-
-        if (ok) _date = date;
+        try
+        {
+            if (await LoadSlotsAsync(date)) _date = date;
+        }
+        catch (Exception)
+        {
+            _error = GenericError;
+        }
+        finally
+        {
+            _busy = false;
+        }
     }
 
     private async Task<bool> LoadSlotsAsync(AvailableDateDto date)
     {
+        // Dùng InvariantCulture để query string luôn là yyyy-MM-dd, không phụ thuộc ngôn ngữ trình duyệt
+        var dateText = date.Date.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
+
         var res = await Api.GetAsync<List<SlotDto>>(
-            $"api/doctors/{_doctor!.DoctorId}/slots?departmentId={_department!.DepartmentId}&date={date.Date:yyyy-MM-dd}");
+            $"api/doctors/{_doctor!.DoctorId}/slots?departmentId={_department!.DepartmentId}&date={dateText}");
 
         if (!res.IsSuccess) { _error = res.ErrorMessage; return false; }
 
@@ -289,35 +335,45 @@
         _busy = true;
         _error = null;
 
-        var request = new CreateAppointmentRequest
+        try
         {
-            DepartmentId = _department!.DepartmentId,
-            DoctorId = _doctor!.DoctorId,
-            ScheduleSlotId = _slot!.ScheduleSlotId,
-            BookingReason = string.IsNullOrWhiteSpace(_reason) ? null : _reason.Trim()
-        };
+            var request = new CreateAppointmentRequest
+            {
+                DepartmentId = _department!.DepartmentId,
+                DoctorId = _doctor!.DoctorId,
+                ScheduleSlotId = _slot!.ScheduleSlotId,
+                BookingReason = string.IsNullOrWhiteSpace(_reason) ? null : _reason.Trim()
+            };
 
-        var res = await Api.PostAsync<CreateAppointmentRequest, AppointmentResponse>("api/appointments", request);
+            var res = await Api.PostAsync<CreateAppointmentRequest, AppointmentResponse>("api/appointments", request);
 
-        if (res.IsSuccess)
+            if (res.IsSuccess && res.Data != null)
+            {
+                _result = res.Data;
+                _step = 5;
+                return;
+            }
+
+            var message = res.IsSuccess ? GenericError : res.ErrorMessage;
+
+            // 409: slot vừa bị người khác đặt (hoặc bạn đã có lịch trùng) -> tải lại và cho chọn lại
+            if (res.StatusCode == 409)
+            {
+                await RefreshAvailabilityAsync();
+                _slot = null;
+                _step = 3;
+            }
+
+            _error = message; // giữ thông báo 409 của server, không bị lỗi tải lại ghi đè
+        }
+        catch (Exception)
+        {
+            _error = GenericError;
+        }
+        finally
         {
             _busy = false;
-            _result = res.Data;
-            _step = 5;
-            return;
         }
-
-        _error = res.ErrorMessage;
-
-        // 409: slot vừa bị người khác đặt (hoặc bạn đã có lịch trùng) -> tải lại và cho chọn lại
-        if (res.StatusCode == 409)
-        {
-            await RefreshAvailabilityAsync();
-            _slot = null;
-            _step = 3;
-        }
-
-        _busy = false;
     }
 
     private async Task RefreshAvailabilityAsync()

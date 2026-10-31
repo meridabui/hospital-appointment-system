@@ -12,6 +12,10 @@ public interface IDoctorRepository
 
     // Doctor đang hoạt động và thuộc khoa; null nếu không thỏa
     Task<Doctor?> GetActiveInDepartmentAsync(int doctorId, int departmentId);
+
+    // Doctor đang hoạt động theo UserId; null nếu không thỏa
+    Task<Doctor?> GetActiveByUserIdAsync(int userId);
+
 }
 
 public class DoctorRepository : IDoctorRepository
@@ -46,9 +50,10 @@ public class DoctorRepository : IDoctorRepository
                                    && d.Staff.User.IsActive
                                    && d.DepartmentAssignments.Any(x => x.DepartmentId == departmentId));
     public Task<Doctor?> GetActiveByUserIdAsync(int userId)
-    => _db.Doctors.AsNoTracking()
-        .FirstOrDefaultAsync(d => d.Staff.UserId == userId
-                               && d.Staff.User.IsActive
-                               && d.Staff.StaffStatus == StaffStatus.Active
-                               && d.DoctorStatus == DoctorStatus.Active);
+      => _db.Doctors.AsNoTracking()
+          .Include(d => d.Staff).ThenInclude(s => s.User)
+          .FirstOrDefaultAsync(d => d.Staff.UserId == userId
+                                 && d.Staff.User.IsActive
+                                 && d.Staff.StaffStatus == StaffStatus.Active
+                                 && d.DoctorStatus == DoctorStatus.Active);
 }

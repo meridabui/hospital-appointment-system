@@ -1,4 +1,6 @@
-﻿2@page "/login"
+﻿@page "/login"
+@using HospitalAppointment.Client.Models
+@using HospitalAppointment.Client.Core
 @inject ApiClient Api
 @inject AuthSession Session
 @inject NavigationManager Nav
@@ -11,111 +13,7 @@
 
         @if (!string.IsNullOrEmpty(_error))
         {
-            <div class="logged-in-panel">
-                <div class="success-icon">✓</div>
-
-                <h3>Welcome back!</h3>
-
-                <p>
-                    @AuthService.CurrentUser.FullName
-                </p>
-
-                <div class="user-info">
-                    <div>
-                        <span>Username</span>
-                        <strong>@AuthService.CurrentUser.Username</strong>
-                    </div>
-
-                    <div>
-                        <span>Role</span>
-                        <strong>@AuthService.CurrentUser.Role</strong>
-                    </div>
-                </div>
-
-                @if (AuthService.CurrentUser.Role == "Nurse")
-                        {
-                            <button class="login-button"
-                                    @onclick="GoToDashboard">
-                                Go to Nurse Dashboard
-                            </button>
-                        }
-                        else if (AuthService.CurrentUser.Role == "MedicalServiceManager")
-                        {
-                            <button class="login-button"
-                                    @onclick="GoToDashboard">
-                                Go to Department Management
-                            </button>
-                }
-                else if (AuthService.CurrentUser.Role == "SchedulingManager")
-                {
-                    <button class="login-button"
-                            @onclick="GoToDashboard">
-                        Go to Schedule Management
-                    </button>
-                }
-
-                <button class="logout-button"
-                        @onclick="Logout">
-                    Logout
-                </button>
-            </div>
-        }
-        else
-        {
-            <div class="login-form">
-                <h3>Sign in</h3>
-                <p class="form-description">
-                    Please enter your account information.
-                </p>
-
-                <EditForm Model="@loginRequest"
-                          OnValidSubmit="@HandleLogin">
-
-                    <DataAnnotationsValidator />
-
-                    <div class="form-group">
-                        <label>Username or Email</label>
-
-                        <InputText class="form-input"
-                                   @bind-Value="loginRequest.UsernameOrEmail"
-                                   placeholder="Enter username or email" />
-
-                        <ValidationMessage For="@(() => loginRequest.UsernameOrEmail)" />
-                    </div>
-
-                    <div class="form-group">
-                        <label>Password</label>
-
-                        <InputText class="form-input"
-                                   type="password"
-                                   @bind-Value="loginRequest.Password"
-                                   placeholder="Enter password" />
-
-                        <ValidationMessage For="@(() => loginRequest.Password)" />
-                    </div>
-
-                    @if (!string.IsNullOrWhiteSpace(errorMessage))
-                    {
-                        <div class="error-message">
-                            @errorMessage
-                        </div>
-                    }
-
-                    <button type="submit"
-                            class="login-button"
-                            disabled="@isLoading">
-
-                        @if (isLoading)
-                        {
-                            <span>Signing in...</span>
-                        }
-                        else
-                        {
-                            <span>Sign In</span>
-                        }
-                    </button>
-                </EditForm>
-            </div>
+            <div class="alert alert-danger" role="alert">@_error</div>
         }
 
         <EditForm Model="_model" OnValidSubmit="SubmitAsync">
@@ -159,119 +57,61 @@
 
     private async Task SubmitAsync()
     {
+        if (_busy) return; // chặn bấm nhiều lần
+
         _busy = true;
         _error = null;
 
-        var result = await Api.PostAsync<LoginRequest, AuthResponse>("api/auth/login", _model);
-        _busy = false;
-
-        if (!result.IsSuccess || result.Data == null)
-        {
-            _error = result.ErrorMessage;
-            return;
-    
-    private async Task HandleLogin()
-    {
-        if (isLoading)
-            return;
-
-        isLoading = true;
-        errorMessage = string.Empty;
-
         try
         {
-            var user = await AuthService.LoginAsync(loginRequest);
+            var result = await Api.PostAsync<LoginRequest, AuthResponse>("api/auth/login", _model);
 
-            if (user == null || string.IsNullOrWhiteSpace(user.Role))
+            if (!result.IsSuccess || result.Data == null)
             {
-                AuthService.Logout();
-                errorMessage = "Unable to identify your account role.";
+                _error = result.ErrorMessage ?? "Đăng nhập thất bại. Vui lòng thử lại.";
                 return;
             }
 
-            var role = user.Role
-                .Trim()
-                .Replace(" ", "")
-                .ToLowerInvariant();
-
-            switch (role)
-            {
-                case "nurse":
-                    Navigation.NavigateTo("/nurse/dashboard");
-                    break;
-
-                case "medicalservicemanager":
-                    Navigation.NavigateTo("/manager/departments");
-                    break;
-
-                case "schedulingmanager":
-                    Navigation.NavigateTo("/manager/schedules");
-                    break;
-
-                default:
-                    AuthService.Logout();
-
-                    errorMessage = $"Role '{user.Role}' is not authorized.";
-
-                    break;
-            }
+            await Session.SignInAsync(result.Data);
+            Nav.NavigateTo(GetTarget());
         }
-        catch (UnauthorizedAccessException)
+        catch (Exception)
         {
-            errorMessage = "Invalid username or password.";
-        }
-        catch (HttpRequestException ex)
-        {
-            errorMessage = $"Cannot connect to API: {ex.Message}";
-        }
-        catch (Exception ex)
-        {
-            errorMessage = $"Login error: {ex.Message}";
+            _error = "Đã xảy ra lỗi khi đăng nhập. Vui lòng thử lại.";
         }
         finally
         {
-            isLoading = false;
+            _busy = false; // luôn mở lại nút đăng nhập
         }
-    }
-
-
-    private void GoToDashboard()
-    {
-        switch (AuthService.CurrentUser?.Role?.Trim())
-        {
-            case "Nurse":
-                Navigation.NavigateTo("/nurse/dashboard");
-                break;
-
-            case "MedicalServiceManager":
-                Navigation.NavigateTo("/manager/departments");
-                break;
-
-            case "SchedulingManager":
-                Navigation.NavigateTo("/manager/schedules");
-                break;
-
-            default:
-                AuthService.Logout();
-                Navigation.NavigateTo("/login", true);
-                break;
-        }
-
-        await Session.SignInAsync(result.Data);
-        Nav.NavigateTo(GetTarget());
     }
 
     // Chỉ chấp nhận đường dẫn nội bộ để tránh chuyển hướng sang trang lạ
     private string GetTarget()
     {
-        if (!string.IsNullOrEmpty(ReturnUrl) && ReturnUrl.StartsWith('/') && !ReturnUrl.StartsWith("//"))
-            return ReturnUrl;
+        if (IsSafeReturnUrl(ReturnUrl))
+            return ReturnUrl!;
 
-        return Session.IsInRole("Patient") ? "book-appointment" : "";
-    private void Logout()
+        // Không có returnUrl hợp lệ -> vào trang làm việc theo vai trò
+        return Session.Current?.Role switch
+        {
+            "Patient" => "book-appointment",
+            "Nurse" => "nurse/dashboard",
+            "MedicalServiceManager" => "manager/departments",
+            "Receptionist" => "reception/desk",
+            "Doctor" => "doctor/ready-patients",
+            _ => ""
+        };
+    }
+
+    private static bool IsSafeReturnUrl(string? url)
     {
-        AuthService.Logout();
-        loginRequest = new LoginRequestDto();
-        errorMessage = string.Empty;
+        if (string.IsNullOrEmpty(url)) return false;
+
+        // Phải là đường dẫn nội bộ: "/abc", không phải "//host" hay "/\host"
+        if (!url.StartsWith('/') || url.StartsWith("//") || url.StartsWith("/\\")) return false;
+
+        // Tránh vòng lặp quay lại chính trang đăng nhập / đăng ký
+        return !url.StartsWith("/login", StringComparison.OrdinalIgnoreCase)
+            && !url.StartsWith("/register", StringComparison.OrdinalIgnoreCase);
     }
 }
