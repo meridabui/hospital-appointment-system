@@ -1,4 +1,4 @@
-﻿using HospitalAppointment.Api.Data;
+using HospitalAppointment.Api.Data;
 using HospitalAppointment.Api.Extensions;
 using HospitalAppointment.Api.Middlewares;
 using HospitalAppointment.Api.Services.Implementations;
@@ -41,6 +41,8 @@ builder.Services.AddScoped<IDepartmentService, DepartmentService>();
 builder.Services.AddScoped<HospitalAppointment.Api.Repositories.IAppointmentRepository, AppointmentRepository>();
 builder.Services.AddScoped<HospitalAppointment.Api.Repositories.Interfaces.IAppointmentRepository, AppointmentRepository>();
 builder.Services.AddScoped<IAppointmentReceptionService, AppointmentReceptionService>();
+builder.Services.AddScoped<IMedicalRecordRepository, MedicalRecordRepository>();
+builder.Services.AddScoped<IMedicalRecordService, MedicalRecordService>();
 
 builder.Services.AddScoped<
     IMedicalServiceRepository,

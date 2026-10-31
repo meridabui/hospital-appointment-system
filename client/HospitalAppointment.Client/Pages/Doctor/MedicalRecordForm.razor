@@ -1,0 +1,237 @@
+@page "/doctor/medical-records/{AppointmentId:int}"
+@layout DoctorLayout
+@inject MedicalRecordApi MedicalRecordApi
+@inject IJSRuntime JS
+
+<PageTitle>Medical record</PageTitle>
+
+<RoleGuard Role="Doctor" OnAuthorized="LoadAsync">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h1 class="mb-0">Medical record</h1>
+        <a class="btn btn-outline-secondary" href="@BackUrl">Back to patients</a>
+    </div>
+
+    @if (_error is not null)
+    {
+        <StatusMessage Type="danger" Text="@_error" />
+    }
+    @if (_success is not null)
+    {
+        <StatusMessage Type="success" Text="@_success" />
+    }
+
+    @if (_loading)
+    {
+        <p>Loading...</p>
+    }
+    else if (_detail is not null)
+    {
+        <div class="card mb-3">
+            <div class="card-body">
+                <h2 class="h5 card-title">@_detail.PatientName (@_detail.PatientCode)</h2>
+                <p class="mb-1">Date of birth: @(_detail.DateOfBirth?.ToString("dd/MM/yyyy") ?? "-"), gender: @(_detail.Gender ?? "-")</p>
+                <p class="mb-1">Appointment: @_detail.AppointmentCode, @_detail.SlotDate.ToString("dd/MM/yyyy"), @_detail.StartTime.ToString("HH:mm") - @_detail.EndTime.ToString("HH:mm"), @_detail.DepartmentName</p>
+                <p class="mb-1">Reason: @(_detail.BookingReason ?? "-")</p>
+                <p class="mb-0">Appointment status: <strong>@_detail.AppointmentStatus</strong>, record status: <strong>@(_detail.RecordStatus ?? "Not created")</strong></p>
+            </div>
+        </div>
+
+        @if (!CanEdit)
+        {
+            <StatusMessage Text="This record is read-only because the consultation is not in progress or the record is final." />
+        }
+
+        <fieldset disabled="@(!CanEdit || _saving)">
+            <h2 class="h5">Examination</h2>
+            <div class="mb-3">
+                <label class="form-label" for="diagnosis">Diagnosis</label>
+                <textarea id="diagnosis" class="form-control" rows="2" @bind="_form.Diagnosis"></textarea>
+            </div>
+            <div class="mb-3">
+                <label class="form-label" for="result">Result</label>
+                <textarea id="result" class="form-control" rows="2" @bind="_form.Result"></textarea>
+            </div>
+            <div class="mb-4">
+                <label class="form-label" for="notes">Treatment notes</label>
+                <textarea id="notes" class="form-control" rows="2" @bind="_form.TreatmentNotes"></textarea>
+            </div>
+
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <h2 class="h5 mb-0">Prescription</h2>
+                <button type="button" class="btn btn-sm btn-outline-primary" @onclick="AddMedication">Add medication</button>
+            </div>
+            @foreach (var item in _form.Prescription.Items)
+            {
+                <div class="border rounded p-2 mb-2">
+                    <div class="row g-2">
+                        <div class="col-md-4"><input class="form-control" placeholder="Medication name *" aria-label="Medication name" maxlength="200" @bind="item.MedicationName" /></div>
+                        <div class="col-md-2"><input class="form-control" placeholder="Dosage" aria-label="Dosage" maxlength="100" @bind="item.Dosage" /></div>
+                        <div class="col-md-2"><input class="form-control" placeholder="Route" aria-label="Route" maxlength="100" @bind="item.Route" /></div>
+                        <div class="col-md-2"><input class="form-control" placeholder="Frequency" aria-label="Frequency" maxlength="200" @bind="item.Frequency" /></div>
+                        <div class="col-md-2"><input class="form-control" placeholder="Duration" aria-label="Duration" maxlength="100" @bind="item.Duration" /></div>
+                        <div class="col-md-2"><input class="form-control" type="number" min="0.01" step="0.01" placeholder="Quantity" aria-label="Quantity" @bind="item.Quantity" /></div>
+                        <div class="col-md-8"><input class="form-control" placeholder="Instructions" aria-label="Instructions" maxlength="500" @bind="item.Instructions" /></div>
+                        <div class="col-md-2 d-grid"><button type="button" class="btn btn-outline-danger" @onclick="() => _form.Prescription.Items.Remove(item)">Remove</button></div>
+                    </div>
+                </div>
+            }
+            @if (_form.Prescription.Items.Count > 0)
+            {
+                <div class="mb-4">
+                    <label class="form-label" for="prescription-notes">Prescription notes</label>
+                    <textarea id="prescription-notes" class="form-control" rows="2" maxlength="1000" @bind="_form.Prescription.Notes"></textarea>
+                </div>
+            }
+
+            <h2 class="h5">Ordered services</h2>
+            <div class="input-group mb-2">
+                <select class="form-select" aria-label="Medical service" @bind="_serviceToAdd">
+                    <option value="0">Select a service</option>
+                    @foreach (var service in AvailableServices)
+                    {
+                        <option value="@service.MedicalServiceId">@service.ServiceName (@service.DepartmentName)</option>
+                    }
+                </select>
+                <button type="button" class="btn btn-outline-primary" disabled="@(_serviceToAdd == 0)" @onclick="AddService">Add service</button>
+            </div>
+            @foreach (var order in _form.OrderedServices)
+            {
+                var locked = order.ServiceStatus != "Ordered";
+                <div class="border rounded p-2 mb-2">
+                    <div class="row g-2 align-items-center">
+                        <div class="col-md-4">@order.ServiceName <small class="text-muted">(@order.ServiceStatus)</small></div>
+                        <div class="col-md-6"><input class="form-control" placeholder="Notes" aria-label="Service notes" maxlength="500" disabled="@locked" @bind="order.Notes" /></div>
+                        <div class="col-md-2 d-grid"><button type="button" class="btn btn-outline-danger" disabled="@locked" @onclick="() => _form.OrderedServices.Remove(order)">Remove</button></div>
+                    </div>
+                </div>
+            }
+
+            <button type="button" class="btn btn-primary mt-3" @onclick="SaveAsync">@(_saving ? "Saving..." : "Save draft")</button>
+            <button type="button" class="btn btn-success mt-3" @onclick="CompleteAsync">Complete consultation</button>
+        </fieldset>
+    }
+</RoleGuard>
+
+@code {
+    [Parameter] public int AppointmentId { get; set; }
+
+    private MedicalRecordDetail? _detail;
+    private SaveMedicalRecordForm _form = new();
+    private List<ActiveMedicalService> _services = new();
+    private int _serviceToAdd;
+    private string? _error;
+    private string? _success;
+    private bool _loading = true;
+    private bool _saving;
+
+    private string BackUrl => _detail?.AppointmentStatus == "Completed" ? "doctor/completed-patients" : "doctor/ready-patients";
+
+    private bool CanEdit => _detail is { AppointmentStatus: "InConsultation" } && _detail.RecordStatus != "Final";
+
+    private IEnumerable<ActiveMedicalService> AvailableServices => _services
+        .Where(x => !_form.OrderedServices.Any(o => o.MedicalServiceId == x.MedicalServiceId));
+
+    private async Task LoadAsync()
+    {
+        var recordTask = MedicalRecordApi.GetAsync(AppointmentId);
+        var servicesTask = MedicalRecordApi.GetActiveServicesAsync();
+        await Task.WhenAll(recordTask, servicesTask);
+
+        _loading = false;
+
+        if (!recordTask.Result.IsSuccess || !servicesTask.Result.IsSuccess)
+        {
+            _error = recordTask.Result.ErrorMessage ?? servicesTask.Result.ErrorMessage;
+            return;
+        }
+
+        _services = servicesTask.Result.Data ?? new();
+        ApplyDetail(recordTask.Result.Data!);
+    }
+
+    private void ApplyDetail(MedicalRecordDetail detail)
+    {
+        _detail = detail;
+        _form = new SaveMedicalRecordForm
+        {
+            Diagnosis = detail.Diagnosis,
+            Result = detail.Result,
+            TreatmentNotes = detail.TreatmentNotes,
+            Prescription = detail.Prescription ?? new PrescriptionForm(),
+            OrderedServices = detail.OrderedServices
+        };
+    }
+
+    private void AddMedication()
+    {
+        _form.Prescription.Items.Add(new PrescriptionItemForm());
+    }
+
+    private void AddService()
+    {
+        var service = _services.First(x => x.MedicalServiceId == _serviceToAdd);
+        _form.OrderedServices.Add(new OrderedServiceForm
+        {
+            MedicalServiceId = service.MedicalServiceId,
+            ServiceName = service.ServiceName
+        });
+        _serviceToAdd = 0;
+    }
+
+    private async Task CompleteAsync()
+    {
+        var confirmed = await JS.InvokeAsync<bool>("confirm",
+            "Complete this consultation? Unsaved changes are not included and the record cannot be edited afterwards.");
+        if (!confirmed)
+        {
+            return;
+        }
+
+        _error = null;
+        _success = null;
+        _saving = true;
+        var result = await MedicalRecordApi.CompleteAsync(AppointmentId);
+        _saving = false;
+
+        if (!result.IsSuccess)
+        {
+            _error = result.ErrorMessage;
+            return;
+        }
+
+        ApplyDetail(result.Data!);
+        _success = "Consultation completed.";
+    }
+
+    private async Task SaveAsync()
+    {
+        _error = null;
+        _success = null;
+
+        if (_form.Prescription.Items.Any(x => string.IsNullOrWhiteSpace(x.MedicationName)))
+        {
+            _error = "Medication name is required.";
+            return;
+        }
+
+        if (_form.Prescription.Items.Any(x => x.Quantity <= 0))
+        {
+            _error = "Quantity must be greater than 0.";
+            return;
+        }
+
+        _saving = true;
+        var result = await MedicalRecordApi.SaveAsync(AppointmentId, _form);
+        _saving = false;
+
+        if (!result.IsSuccess)
+        {
+            _error = result.ErrorMessage;
+            return;
+        }
+
+        // Nạp lại để các dòng mới có id, lần lưu sau không tạo trùng
+        ApplyDetail(result.Data!);
+        _success = "Draft saved.";
+    }
+}

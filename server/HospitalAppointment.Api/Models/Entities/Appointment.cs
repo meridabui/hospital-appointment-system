@@ -1,4 +1,4 @@
-﻿using HospitalAppointment.Api.Models.Enums;
+using HospitalAppointment.Api.Models.Enums;
 
 namespace HospitalAppointment.Api.Models.Entities;
 
@@ -102,5 +102,26 @@ public class Appointment
 
         Status = AppointmentStatus.InConsultation;
         ConsultationStartedAt = DateTime.UtcNow;
+    }
+
+    /// <summary>
+    /// Kiểm tra điều kiện để bác sĩ hoàn tất lượt khám (InConsultation)
+    /// </summary>
+    public bool CanComplete() => Status == AppointmentStatus.InConsultation;
+
+    /// <summary>
+    /// Bác sĩ hoàn tất lượt khám (InConsultation -> Completed).
+    /// Nhận UserId vì CompletedBy tham chiếu Users.UserId.
+    /// </summary>
+    public void Complete(int userId)
+    {
+        if (!CanComplete())
+        {
+            throw new InvalidOperationException($"Không thể hoàn tất vì lịch hẹn đang ở trạng thái {Status}.");
+        }
+
+        Status = AppointmentStatus.Completed;
+        CompletedAt = DateTime.UtcNow;
+        CompletedBy = userId;
     }
 }

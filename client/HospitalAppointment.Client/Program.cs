@@ -1,4 +1,5 @@
 using HospitalAppointment.Client;
+using HospitalAppointment.Client.Api;
 using HospitalAppointment.Client.Services.Implementations;
 using HospitalAppointment.Client.Services.Interfaces;
 using HospitalAppointment.Client.Services;
@@ -20,6 +21,8 @@ builder.Services.AddScoped<IAppointmentReceptionApiClient, AppointmentReceptionA
 // Register Services
 builder.Services.AddScoped<AuthApiService>();
 builder.Services.AddScoped<NurseApiService>();
+builder.Services.AddScoped<ExaminationApi>();
+builder.Services.AddScoped<MedicalRecordApi>();
 
 builder.Services.AddScoped<DepartmentApiService>();
 builder.Services.AddScoped<MedicalServiceApiService>();

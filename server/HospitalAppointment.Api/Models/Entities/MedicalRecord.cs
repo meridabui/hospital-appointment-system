@@ -1,4 +1,4 @@
-﻿using HospitalAppointment.Api.Models.Enums;
+using HospitalAppointment.Api.Models.Enums;
 
 namespace HospitalAppointment.Api.Models.Entities;
 
@@ -23,4 +23,28 @@ public class MedicalRecord
     public User? FinalizedByUser { get; set; }
     public ICollection<OrderedService> OrderedServices { get; set; } = new List<OrderedService>();
     public Prescription? Prescription { get; set; }
+
+    public bool CanEdit() => RecordStatus == RecordStatus.Draft;
+
+    public bool IsComplete() => !string.IsNullOrWhiteSpace(Diagnosis) && !string.IsNullOrWhiteSpace(TreatmentNotes);
+
+    public void FinalizeRecord(int userId)
+    {
+        if (!CanEdit())
+        {
+            throw new InvalidOperationException("Hồ sơ đã hoàn tất.");
+        }
+
+        RecordStatus = RecordStatus.Final;
+        FinalizedAt = DateTime.UtcNow;
+        FinalizedBy = userId;
+    }
+
+    public void UpdateContent(string? diagnosis, string? result, string? treatmentNotes)
+    {
+        Diagnosis = diagnosis;
+        Result = result;
+        TreatmentNotes = treatmentNotes;
+        UpdatedAt = DateTime.UtcNow;
+    }
 }

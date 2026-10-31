@@ -1,4 +1,4 @@
-﻿using System.Net;
+using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
@@ -36,6 +36,12 @@ public class ApiClient
     public Task<ApiResult<TResponse>> PostAsync<TRequest, TResponse>(string url, TRequest body)
         => SendAsync<TResponse>(HttpMethod.Post, url, JsonContent.Create(body, options: JsonOptions));
 
+    public Task<ApiResult<TResponse>> PutAsync<TRequest, TResponse>(string url, TRequest body)
+        => SendAsync<TResponse>(HttpMethod.Put, url, JsonContent.Create(body, options: JsonOptions));
+
+    public Task<ApiResult<T>> PostAsync<T>(string url)
+        => SendAsync<T>(HttpMethod.Post, url, null);
+
     private async Task<ApiResult<T>> SendAsync<T>(HttpMethod method, string url, HttpContent? content)
     {
         var token = _session.Token;
@@ -58,7 +64,9 @@ public class ApiClient
         {
             if (response.IsSuccessStatusCode)
             {
-                var data = await response.Content.ReadFromJsonAsync<T>(JsonOptions);
+                var data = response.StatusCode == HttpStatusCode.NoContent
+                    ? default
+                    : await response.Content.ReadFromJsonAsync<T>(JsonOptions);
                 return new ApiResult<T> { IsSuccess = true, Data = data, StatusCode = (int)response.StatusCode };
             }
 

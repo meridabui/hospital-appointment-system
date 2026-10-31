@@ -1,4 +1,6 @@
 @inherits LayoutComponentBase
+@inject AuthSession Session
+@inject NavigationManager Nav
 
 <div class="page">
     <div class="sidebar">
@@ -6,10 +8,26 @@
     </div>
 
     <main>
-        <div class="top-row px-4"></div>
+        <div class="top-row px-4">
+            @if (Session.IsAuthenticated)
+            {
+                <span class="me-3">@Session.Current!.FullName</span>
+                <button class="btn btn-link p-0" @onclick="SignOutAsync">Log out</button>
+            }
+        </div>
 
         <article class="content px-4">
             @Body
         </article>
     </main>
 </div>
+
+@code {
+    protected override Task OnInitializedAsync() => Session.InitializeAsync();
+
+    private async Task SignOutAsync()
+    {
+        await Session.SignOutAsync();
+        Nav.NavigateTo("login");
+    }
+}
