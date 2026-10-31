@@ -12,7 +12,6 @@ public interface IDoctorRepository
 
     // Doctor đang hoạt động và thuộc khoa; null nếu không thỏa
     Task<Doctor?> GetActiveInDepartmentAsync(int doctorId, int departmentId);
-    Task<Doctor?> GetActiveByUserIdAsync(int userId);
 }
 
 public class DoctorRepository : IDoctorRepository
