@@ -19,4 +19,7 @@ builder.Services.AddScoped(sp =>
 builder.Services.AddScoped<AuthApiService>();
 builder.Services.AddScoped<NurseApiService>();
 
+builder.Services.AddScoped<DepartmentApiService>();
+builder.Services.AddScoped<MedicalServiceApiService>();
+
 await builder.Build().RunAsync();

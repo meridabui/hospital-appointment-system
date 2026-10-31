@@ -40,12 +40,19 @@
                 </div>
 
                 @if (AuthService.CurrentUser.Role == "Nurse")
-                {
-                    <button class="login-button"
-                            @onclick="GoToDashboard">
-                        Go to Nurse Dashboard
-                    </button>
-                }
+                        {
+                            <button class="login-button"
+                                    @onclick="GoToDashboard">
+                                Go to Nurse Dashboard
+                            </button>
+                        }
+                        else if (AuthService.CurrentUser.Role == "MedicalServiceManager")
+                        {
+                            <button class="login-button"
+                                    @onclick="GoToDashboard">
+                                Go to Department Management
+                            </button>
+                        }
 
                 <button class="logout-button"
                         @onclick="Logout">
@@ -313,67 +320,76 @@
     private bool isLoading;
     private string errorMessage = string.Empty;
 
-    private async Task HandleLogin()
+    
+private async Task HandleLogin()
+{
+    if (isLoading)
+        return;
+
+    isLoading = true;
+    errorMessage = string.Empty;
+
+    try
     {
-        if (isLoading)
-            return;
+        var user = await AuthService.LoginAsync(loginRequest);
 
-        isLoading = true;
-        errorMessage = string.Empty;
-
-        try
+        switch (user.Role)
         {
-            var user = await AuthService.LoginAsync(loginRequest);
+            case "Nurse":
+                Navigation.NavigateTo("/nurse/dashboard");
+                break;
 
-            // Kiểm tra Role
-            if (!string.Equals(
-                user.Role,
-                "Nurse",
-                StringComparison.OrdinalIgnoreCase))
-            {
+            case "MedicalServiceManager":
+                Navigation.NavigateTo("/manager/departments");
+                break;
+
+            default:
                 AuthService.Logout();
 
                 errorMessage =
-                    "Access denied. This account does not have Nurse permissions.";
-
-                return;
-            }
-
-            // Đăng nhập thành công, chuyển đến Nurse Dashboard
-            Navigation.NavigateTo("/nurse/dashboard");
-        }
-        catch (UnauthorizedAccessException)
-        {
-            errorMessage = "Invalid username or password.";
-        }
-        catch (HttpRequestException)
-        {
-            errorMessage =
-                "Cannot connect to the server. Please try again.";
-        }
-        catch (Exception)
-        {
-            errorMessage =
-                "An unexpected error occurred. Please try again.";
-        }
-        finally
-        {
-            isLoading = false;
+                    "You do not have permission to access this system.";
+                break;
         }
     }
+    catch (UnauthorizedAccessException)
+    {
+        errorMessage = "Invalid username or password.";
+    }
+    catch (HttpRequestException)
+    {
+        errorMessage =
+            "Cannot connect to the server. Please try again.";
+    }
+    catch (Exception)
+    {
+        errorMessage =
+            "An unexpected error occurred. Please try again.";
+    }
+    finally
+    {
+        isLoading = false;
+    }
+}
+
 
     private void GoToDashboard()
+{
+    switch (AuthService.CurrentUser?.Role)
     {
-        if (AuthService.CurrentUser?.Role == "Nurse")
-        {
+        case "Nurse":
             Navigation.NavigateTo("/nurse/dashboard");
-        }
-        else
-        {
+            break;
+
+        case "MedicalServiceManager":
+            Navigation.NavigateTo("/manager/departments");
+            break;
+
+        default:
             AuthService.Logout();
-            Navigation.NavigateTo("/login");
-        }
+            Navigation.NavigateTo("/login", true);
+            break;
     }
+}
 
     private void Logout()
     {

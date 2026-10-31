@@ -1,12 +1,18 @@
 ﻿
+@implements IDisposable
+
 @using HospitalAppointment.Client.Services
+@using Microsoft.AspNetCore.Components.Routing
+
 @inject AuthApiService AuthService
 @inject NavigationManager Navigation
 
 <div class="sidebar">
 
+    <!-- BRAND -->
     <div class="sidebar-brand">
         <div class="brand-icon">+</div>
+
         <div>
             <strong>Hospital</strong>
             <span>Appointment System</span>
@@ -19,30 +25,88 @@
              "Nurse",
              StringComparison.OrdinalIgnoreCase))
     {
+        <!-- NURSE MENU -->
         <div class="menu-section">
+
             <span class="menu-label">NURSE WORKSPACE</span>
 
             <NavLink href="/nurse/dashboard"
                      Match="NavLinkMatch.All"
                      class="menu-link">
+
                 <span class="menu-icon">▦</span>
                 <span>Dashboard</span>
+
             </NavLink>
 
             <NavLink href="/nurse/dashboard"
                      class="menu-link">
+
                 <span class="menu-icon">☷</span>
                 <span>Waiting Patients</span>
+
             </NavLink>
+
         </div>
 
+        <!-- NURSE ACCOUNT -->
         <div class="sidebar-user">
+
             <div class="user-avatar">N</div>
 
             <div class="user-details">
                 <strong>@AuthService.CurrentUser?.FullName</strong>
                 <span>Nurse</span>
             </div>
+
+        </div>
+
+        <button class="sidebar-logout" @onclick="Logout">
+            <span>↪</span>
+            Logout
+        </button>
+    }
+    else if (AuthService.IsLoggedIn &&
+             string.Equals(
+                 AuthService.CurrentUser?.Role,
+                 "MedicalServiceManager",
+                 StringComparison.OrdinalIgnoreCase))
+    {
+        <!-- MEDICAL SERVICE MANAGER MENU -->
+        <div class="menu-section">
+
+            <span class="menu-label">MANAGEMENT</span>
+
+            <NavLink href="/manager/departments"
+                     Match="NavLinkMatch.All"
+                     class="menu-link">
+
+                <span class="menu-icon">▦</span>
+                <span>Departments</span>
+
+            </NavLink>
+
+            <NavLink href="/manager/medical-services"
+                     Match="NavLinkMatch.All"
+                     class="menu-link">
+
+                <span class="menu-icon">✚</span>
+                <span>Medical Services</span>
+
+            </NavLink>
+
+        </div>
+
+        <!-- MANAGER ACCOUNT -->
+        <div class="sidebar-user">
+
+            <div class="user-avatar">M</div>
+
+            <div class="user-details">
+                <strong>@AuthService.CurrentUser?.FullName</strong>
+                <span>Medical Service Manager</span>
+            </div>
+
         </div>
 
         <button class="sidebar-logout" @onclick="Logout">
@@ -52,19 +116,29 @@
     }
     else
     {
+        <!-- GUEST MENU -->
         <div class="menu-section">
+
             <span class="menu-label">ACCOUNT</span>
 
-            <NavLink href="/login" class="menu-link">
+            <NavLink href="/login"
+                     Match="NavLinkMatch.All"
+                     class="menu-link">
+
                 <span class="menu-icon">↪</span>
                 <span>Login</span>
+
             </NavLink>
+
         </div>
     }
 
 </div>
 
 <style>
+
+    /* SIDEBAR */
+
     .sidebar {
         height: 100%;
         min-height: 100vh;
@@ -75,6 +149,8 @@
         padding: 22px 15px;
         box-sizing: border-box;
     }
+
+    /* BRAND */
 
     .sidebar-brand {
         display: flex;
@@ -94,6 +170,7 @@
         align-items: center;
         font-size: 27px;
         font-weight: 700;
+        flex-shrink: 0;
     }
 
     .sidebar-brand strong,
@@ -110,6 +187,8 @@
         color: #a5b4fc;
         margin-top: 4px;
     }
+
+    /* MENU */
 
     .menu-section {
         margin-top: 30px;
@@ -152,7 +231,10 @@
         width: 20px;
         text-align: center;
         font-size: 18px;
+        flex-shrink: 0;
     }
+
+    /* USER */
 
     .sidebar-user {
         display: flex;
@@ -172,6 +254,7 @@
         align-items: center;
         justify-content: center;
         font-weight: 700;
+        flex-shrink: 0;
     }
 
     .user-details {
@@ -196,6 +279,8 @@
         margin-top: 3px;
     }
 
+    /* LOGOUT */
+
     .sidebar-logout {
         display: flex;
         align-items: center;
@@ -208,17 +293,42 @@
         font-size: 14px;
         border-radius: 7px;
         text-align: left;
+        width: 100%;
     }
 
     .sidebar-logout:hover {
         background: rgba(255,255,255,.08);
     }
+
 </style>
 
 @code {
+
+    protected override void OnInitialized()
+    {
+        Navigation.LocationChanged += OnLocationChanged;
+    }
+
+    // Refresh Sidebar after navigation
+    private void OnLocationChanged(
+        object? sender,
+        LocationChangedEventArgs e)
+    {
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    // Logout
     private void Logout()
     {
         AuthService.Logout();
+
         Navigation.NavigateTo("/login", true);
     }
+
+    // Unsubscribe event when component is disposed
+    public void Dispose()
+    {
+        Navigation.LocationChanged -= OnLocationChanged;
+    }
+
 }
