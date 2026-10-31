@@ -82,7 +82,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IDoctorRepository, DoctorRepository>();
         services.AddScoped<IScheduleSlotRepository, ScheduleSlotRepository>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
-
+        services.AddScoped<ICatalogService, CatalogService>();
         return services;
     }
 }
