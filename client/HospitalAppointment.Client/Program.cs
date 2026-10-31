@@ -23,5 +23,5 @@ builder.Services.AddScoped<NurseApiService>();
 
 builder.Services.AddScoped<DepartmentApiService>();
 builder.Services.AddScoped<MedicalServiceApiService>();
-
+builder.Services.AddScoped<ScheduleApiService>();
 await builder.Build().RunAsync();

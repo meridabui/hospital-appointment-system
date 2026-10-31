@@ -1,0 +1,1026 @@
+﻿@page "/manager/schedules"
+
+@using HospitalAppointment.Client.Models.Schedule
+@using HospitalAppointment.Client.Models.Department
+@using HospitalAppointment.Client.Services
+
+@inject ScheduleApiService ScheduleService
+@inject DepartmentApiService DepartmentService
+@inject AuthApiService AuthService
+@inject NavigationManager Navigation
+
+<PageTitle>Schedule Management</PageTitle>
+
+<div class="schedule-page">
+
+    <!-- PAGE HEADER -->
+    <div class="page-header">
+        <div>
+            <h2>Schedule Management</h2>
+            <p>Manage doctors' working schedules and appointment slots.</p>
+        </div>
+
+        <button class="primary-button" @onclick="OpenCreateForm">
+            + Create Schedule
+        </button>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(errorMessage))
+    {
+        <div class="alert-error">@errorMessage</div>
+    }
+
+    @if (!string.IsNullOrWhiteSpace(successMessage))
+    {
+        <div class="alert-success">@successMessage</div>
+    }
+
+    <!-- CREATE / EDIT FORM -->
+    @if (showForm)
+    {
+        <div class="form-card">
+
+            <div class="form-header">
+                <h3>@(editingId.HasValue ? "Edit Schedule Slot" : "Create Doctor Schedule")</h3>
+
+                <button class="close-button" @onclick="CloseForm">
+                    ×
+                </button>
+            </div>
+
+            <div class="form-grid">
+
+                <!-- DOCTOR -->
+                <div class="form-group">
+                    <label>Doctor *</label>
+
+                    <select class="form-input"
+                            value="@selectedFormDoctorId"
+                            @onchange="OnFormDoctorChanged">
+
+                        <option value="0">Select Doctor</option>
+
+                        @foreach (var doctor in doctors)
+                        {
+                            <option value="@doctor.DoctorId">
+                                @doctor.DoctorName
+                                @(string.IsNullOrWhiteSpace(doctor.Specialty)
+                                    ? ""
+                                    : $" - {doctor.Specialty}")
+                            </option>
+                        }
+                    </select>
+                </div>
+
+                <!-- DEPARTMENT -->
+                <div class="form-group">
+                    <label>Department *</label>
+
+                    <select class="form-input"
+                            @bind="selectedFormDepartmentId"
+                            disabled="@(selectedFormDoctorId <= 0 || assignedDepartments.Count == 0)">
+
+                        <option value="0">Select Department</option>
+
+                        @foreach (var department in assignedDepartments)
+                        {
+                            <option value="@department.DepartmentId">
+                                @department.DepartmentName
+                            </option>
+                        }
+                    </select>
+                </div>
+
+                <!-- DATE -->
+                <div class="form-group">
+                    <label>Working Date *</label>
+
+                    <input type="date"
+                           class="form-input"
+                           @bind="formDate"
+                           min="@DateTime.Today.ToString("yyyy-MM-dd")" />
+                </div>
+
+                <!-- START TIME -->
+                <div class="form-group">
+                    <label>Start Time *</label>
+
+                    <input type="time"
+                           class="form-input"
+                           @bind="formStartTime" />
+                </div>
+
+                <!-- END TIME -->
+                <div class="form-group">
+                    <label>End Time *</label>
+
+                    <input type="time"
+                           class="form-input"
+                           @bind="formEndTime" />
+                </div>
+
+                <!-- SLOT DURATION -->
+                @if (!editingId.HasValue)
+                {
+                    <div class="form-group">
+                        <label>Slot Duration *</label>
+
+                        <select class="form-input"
+                                @bind="slotDuration">
+
+                            <option value="30">30 minutes</option>
+                            <option value="45">45 minutes</option>
+                            <option value="60">60 minutes</option>
+                        </select>
+                    </div>
+                }
+
+            </div>
+
+            @if (!editingId.HasValue)
+            {
+                <div class="form-note">
+                    The system will automatically generate appointment slots
+                    based on the selected working time and slot duration.
+                </div>
+            }
+            else
+            {
+                <div class="form-note">
+                    You can only edit a schedule slot that does not have
+                    an active appointment.
+                </div>
+            }
+
+            @if (!string.IsNullOrWhiteSpace(formError))
+            {
+                <div class="alert-error">@formError</div>
+            }
+
+            <div class="form-actions">
+
+                <button class="secondary-button"
+                        @onclick="CloseForm"
+                        disabled="@isSaving">
+                    Cancel
+                </button>
+
+                <button class="primary-button"
+                        @onclick="SaveSchedule"
+                        disabled="@isSaving">
+
+                    @(isSaving
+                        ? "Saving..."
+                        : editingId.HasValue
+                            ? "Update Schedule"
+                            : "Create Schedule")
+
+                </button>
+
+            </div>
+
+        </div>
+    }
+
+    <!-- SCHEDULE LIST -->
+    <div class="content-card">
+
+        <div class="toolbar">
+
+            <select class="filter-input"
+                    @bind="filterDoctorId"
+                    @bind:after="LoadSchedules">
+
+                <option value="0">All Doctors</option>
+
+                @foreach (var doctor in doctors)
+                {
+                    <option value="@doctor.DoctorId">
+                        @doctor.DoctorName
+                    </option>
+                }
+            </select>
+
+            <select class="filter-input"
+                    @bind="filterDepartmentId"
+                    @bind:after="LoadSchedules">
+
+                <option value="0">All Departments</option>
+
+                @foreach (var department in allDepartments)
+                {
+                    <option value="@department.DepartmentId">
+                        @department.DepartmentName
+                    </option>
+                }
+            </select>
+
+            <input type="date"
+                   class="filter-input date-filter"
+                   @bind="filterDate"
+                   @bind:after="LoadSchedules" />
+
+            <select class="filter-input"
+                    @bind="statusFilter"
+                    @bind:after="LoadSchedules">
+
+                <option value="all">All Status</option>
+                <option value="true">Active</option>
+                <option value="false">Inactive</option>
+            </select>
+
+            <button class="secondary-button"
+                    @onclick="LoadSchedules"
+                    disabled="@isLoading">
+                Refresh
+            </button>
+
+        </div>
+
+        @if (isLoading)
+        {
+            <div class="loading-state">
+                Loading schedules...
+            </div>
+        }
+        else if (schedules.Count == 0)
+        {
+            <div class="empty-state">
+                <h3>No schedules found</h3>
+                <p>Try changing your filters or create a new schedule.</p>
+            </div>
+        }
+        else
+        {
+            <div class="table-container">
+
+                <table class="schedule-table">
+
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Doctor</th>
+                            <th>Department</th>
+                            <th>Working Date</th>
+                            <th>Start Time</th>
+                            <th>End Time</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        @foreach (var item in schedules)
+                        {
+                            <tr @key="item.ScheduleSlotId">
+
+                                <td>@item.ScheduleSlotId</td>
+
+                                <td>
+                                    <strong>@item.DoctorName</strong>
+                                    <div class="sub-text">
+                                        @item.Specialty
+                                    </div>
+                                </td>
+
+                                <td>@item.DepartmentName</td>
+
+                                <td>
+                                    @item.SlotDate.ToString("dd/MM/yyyy")
+                                </td>
+
+                                <td>
+                                    @item.StartTime.ToString("HH:mm")
+                                </td>
+
+                                <td>
+                                    @item.EndTime.ToString("HH:mm")
+                                </td>
+
+                                <td>
+                                    @if (item.IsActive)
+                                    {
+                                        <span class="status active">
+                                            Active
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="status inactive">
+                                            Inactive
+                                        </span>
+                                    }
+                                </td>
+
+                                <td>
+                                    <div class="action-group">
+
+                                        <button class="edit-button"
+                                                disabled="@updatingId.HasValue"
+                                                @onclick="() => OpenEditForm(item)">
+                                            Edit
+                                        </button>
+
+                                        <button class="status-button @(item.IsActive ? "deactivate" : "activate")"
+                                                disabled="@updatingId.HasValue"
+                                                @onclick="() => ToggleStatus(item)">
+
+                                            @(item.IsActive
+                                                ? "Deactivate"
+                                                : "Activate")
+
+                                        </button>
+
+                                    </div>
+                                </td>
+
+                            </tr>
+                        }
+                    </tbody>
+
+                </table>
+
+            </div>
+        }
+
+        <div class="table-footer">
+            Total schedule slots: @schedules.Count
+        </div>
+
+    </div>
+
+</div>
+
+<style>
+
+    .schedule-page {
+        min-height: 100vh;
+        padding: 28px;
+        background: #f8fafc;
+    }
+
+    .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 15px;
+        margin-bottom: 24px;
+    }
+
+    .page-header h2 {
+        margin: 0;
+        color: #172554;
+        font-size: 25px;
+    }
+
+    .page-header p {
+        margin: 7px 0 0;
+        color: #64748b;
+        font-size: 14px;
+    }
+
+    .content-card,
+    .form-card {
+        background: white;
+        border: 1px solid #e2e8f0;
+        border-radius: 9px;
+        padding: 22px;
+        margin-bottom: 20px;
+    }
+
+    .toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-bottom: 22px;
+    }
+
+    .filter-input,
+    .form-input {
+        height: 40px;
+        padding: 0 12px;
+        border: 1px solid #cbd5e1;
+        border-radius: 6px;
+        background: white;
+        color: #334155;
+        outline: none;
+        box-sizing: border-box;
+        font-size: 13px;
+    }
+
+    .filter-input {
+        flex: 1;
+        min-width: 140px;
+    }
+
+    .date-filter {
+        min-width: 150px;
+    }
+
+    .filter-input:focus,
+    .form-input:focus {
+        border-color: #2563eb;
+    }
+
+    .form-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 22px;
+    }
+
+    .form-header h3 {
+        margin: 0;
+        color: #1e293b;
+        font-size: 18px;
+    }
+
+    .close-button {
+        background: none;
+        border: none;
+        font-size: 25px;
+        color: #64748b;
+        cursor: pointer;
+    }
+
+    .form-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 18px;
+    }
+
+    .form-group label {
+        display: block;
+        margin-bottom: 8px;
+        font-size: 13px;
+        font-weight: 600;
+        color: #334155;
+    }
+
+    .form-input {
+        width: 100%;
+    }
+
+    .form-note {
+        margin-top: 18px;
+        padding: 13px;
+        background: #f1f5f9;
+        border-radius: 6px;
+        color: #475569;
+        font-size: 12px;
+        line-height: 1.6;
+    }
+
+    .form-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+        margin-top: 22px;
+    }
+
+    .primary-button,
+    .secondary-button,
+    .edit-button,
+    .status-button {
+        border-radius: 6px;
+        padding: 9px 15px;
+        cursor: pointer;
+        font-size: 13px;
+        font-weight: 600;
+    }
+
+    .primary-button {
+        background: #2563eb;
+        border: 1px solid #2563eb;
+        color: white;
+    }
+
+    .primary-button:hover {
+        background: #1d4ed8;
+    }
+
+    .secondary-button {
+        background: white;
+        border: 1px solid #cbd5e1;
+        color: #334155;
+    }
+
+    .edit-button {
+        background: #eff6ff;
+        color: #2563eb;
+        border: 1px solid #bfdbfe;
+    }
+
+    .status-button {
+        border: 1px solid transparent;
+    }
+
+    .deactivate {
+        background: #fff7ed;
+        color: #c2410c;
+        border-color: #fed7aa;
+    }
+
+    .activate {
+        background: #f0fdf4;
+        color: #15803d;
+        border-color: #bbf7d0;
+    }
+
+    button:disabled {
+        opacity: .6;
+        cursor: not-allowed;
+    }
+
+    .table-container {
+        overflow-x: auto;
+    }
+
+    .schedule-table {
+        width: 100%;
+        border-collapse: collapse;
+        white-space: nowrap;
+    }
+
+    .schedule-table th {
+        padding: 13px 12px;
+        background: #f8fafc;
+        color: #64748b;
+        text-align: left;
+        font-size: 12px;
+        border-bottom: 1px solid #e2e8f0;
+    }
+
+    .schedule-table td {
+        padding: 15px 12px;
+        border-bottom: 1px solid #f1f5f9;
+        color: #334155;
+        font-size: 13px;
+    }
+
+    .sub-text {
+        margin-top: 4px;
+        color: #94a3b8;
+        font-size: 11px;
+    }
+
+    .status {
+        display: inline-block;
+        padding: 5px 10px;
+        border-radius: 20px;
+        font-size: 11px;
+        font-weight: 600;
+    }
+
+    .status.active {
+        color: #15803d;
+        background: #dcfce7;
+    }
+
+    .status.inactive {
+        color: #b91c1c;
+        background: #fee2e2;
+    }
+
+    .action-group {
+        display: flex;
+        gap: 7px;
+    }
+
+    .table-footer {
+        padding-top: 17px;
+        color: #64748b;
+        font-size: 12px;
+    }
+
+    .loading-state,
+    .empty-state {
+        padding: 50px 20px;
+        text-align: center;
+        color: #64748b;
+    }
+
+    .empty-state h3 {
+        color: #334155;
+    }
+
+    .empty-state p {
+        font-size: 13px;
+    }
+
+    .alert-error,
+    .alert-success {
+        padding: 12px 15px;
+        border-radius: 6px;
+        margin-bottom: 18px;
+        font-size: 13px;
+    }
+
+    .alert-error {
+        color: #b91c1c;
+        background: #fef2f2;
+        border: 1px solid #fecaca;
+    }
+
+    .alert-success {
+        color: #15803d;
+        background: #f0fdf4;
+        border: 1px solid #bbf7d0;
+    }
+
+    @@media(max-width: 700px) {
+        .schedule-page {
+            padding: 15px;
+        }
+
+        .page-header {
+            align-items: flex-start;
+            flex-direction: column;
+        }
+
+        .form-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+</style>
+
+@code {
+
+    private List<DoctorScheduleDto> schedules = new();
+    private List<DoctorOptionDto> doctors = new();
+    private List<DepartmentOptionDto> assignedDepartments = new();
+    private List<HospitalAppointment.Client.Models.Department.DepartmentDto>
+        allDepartments = new();
+
+    private int selectedFormDoctorId;
+    private int selectedFormDepartmentId;
+
+    private int filterDoctorId;
+    private int filterDepartmentId;
+
+    private int slotDuration = 60;
+
+    private int? editingId;
+    private int? updatingId;
+
+    private DateTime formDate = DateTime.Today;
+
+    private TimeOnly formStartTime = new(8, 0);
+    private TimeOnly formEndTime = new(11, 0);
+
+    // Filter
+    private DateTime? filterDate;
+    private string statusFilter = "all";
+
+    private string errorMessage = string.Empty;
+    private string successMessage = string.Empty;
+    private string formError = string.Empty;
+
+    private bool showForm;
+    private bool isLoading;
+    private bool isSaving;
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!AuthService.IsLoggedIn ||
+            !string.Equals(
+                AuthService.CurrentUser?.Role,
+                "SchedulingManager",
+                StringComparison.OrdinalIgnoreCase))
+        {
+            Navigation.NavigateTo("/login", true);
+            return;
+        }
+
+        await LoadInitialData();
+    }
+
+    private async Task LoadInitialData()
+    {
+        isLoading = true;
+
+        try
+        {
+            doctors = await ScheduleService.GetDoctorsAsync();
+
+            allDepartments = await DepartmentService.GetAllAsync();
+        }
+        catch (HttpRequestException ex)
+        {
+            HandleApiError(ex);
+        }
+        catch
+        {
+            errorMessage = "Unable to load schedule data.";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+
+        await LoadSchedules();
+    }
+
+
+    private async Task LoadSchedules()
+    {
+        if (isLoading)
+            return;
+
+        isLoading = true;
+        errorMessage = string.Empty;
+
+        try
+        {
+            int? doctorId = filterDoctorId > 0
+                ? filterDoctorId
+                : null;
+
+            int? departmentId = filterDepartmentId > 0
+                ? filterDepartmentId
+                : null;
+
+            DateOnly? date = filterDate.HasValue
+    ? DateOnly.FromDateTime(filterDate.Value)
+    : null;
+
+            bool? isActive = statusFilter switch
+            {
+                "true" => true,
+                "false" => false,
+                _ => null
+            };
+
+            schedules = await ScheduleService.GetAllAsync(
+                doctorId,
+                departmentId,
+                date,
+                isActive);
+        }
+        catch (HttpRequestException ex)
+        {
+            HandleApiError(ex);
+        }
+        catch
+        {
+            errorMessage = "Unable to load schedules.";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+   
+    private async Task OnFormDoctorChanged(
+        ChangeEventArgs e)
+    {
+        if (!int.TryParse(e.Value?.ToString(), out var doctorId))
+            return;
+
+        selectedFormDoctorId = doctorId;
+        selectedFormDepartmentId = 0;
+        assignedDepartments.Clear();
+
+        if (doctorId <= 0)
+            return;
+
+        try
+        {
+            assignedDepartments =
+                await ScheduleService.GetDepartmentsByDoctorAsync(doctorId);
+        }
+        catch (HttpRequestException ex)
+        {
+            formError = ex.Message;
+            HandleApiError(ex);
+        }
+        catch
+        {
+            formError = "Unable to load doctor's departments.";
+        }
+    }
+
+
+    private void OpenCreateForm()
+    {
+        editingId = null;
+
+        selectedFormDoctorId = 0;
+        selectedFormDepartmentId = 0;
+
+        assignedDepartments.Clear();
+
+        formDate = DateTime.Today;
+        formStartTime = new TimeOnly(8, 0);
+        formEndTime = new TimeOnly(11, 0);
+
+        slotDuration = 60;
+
+        formError = string.Empty;
+        errorMessage = string.Empty;
+
+        showForm = true;
+    }
+
+
+    private async Task OpenEditForm(DoctorScheduleDto item)
+    {
+        editingId = item.ScheduleSlotId;
+
+        selectedFormDoctorId = item.DoctorId;
+        selectedFormDepartmentId = item.DepartmentId;
+
+        formDate = item.SlotDate.ToDateTime(TimeOnly.MinValue);
+        formStartTime = item.StartTime;
+        formEndTime = item.EndTime;
+
+        formError = string.Empty;
+        errorMessage = string.Empty;
+
+        showForm = true;
+
+        try
+        {
+            assignedDepartments =
+                await ScheduleService.GetDepartmentsByDoctorAsync(
+                    item.DoctorId);
+        }
+        catch (HttpRequestException ex)
+        {
+            formError = ex.Message;
+            HandleApiError(ex);
+        }
+        catch
+        {
+            formError = "Unable to load doctor's departments.";
+        }
+    }
+
+    // CLOSE FORM
+
+    private void CloseForm()
+    {
+        showForm = false;
+        editingId = null;
+        formError = string.Empty;
+    }
+
+    // CREATE / UPDATE
+
+    private async Task SaveSchedule()
+    {
+        if (isSaving)
+            return;
+
+        formError = string.Empty;
+
+        if (selectedFormDoctorId <= 0)
+        {
+            formError = "Please select a doctor.";
+            return;
+        }
+
+        if (selectedFormDepartmentId <= 0)
+        {
+            formError = "Please select a department.";
+            return;
+        }
+
+        var date = DateOnly.FromDateTime(formDate);
+
+        var startTime = formStartTime;
+        var endTime = formEndTime;
+
+        if (endTime <= startTime)
+        {
+            formError = "End time must be later than start time.";
+            return;
+        }
+
+        if (date < DateOnly.FromDateTime(DateTime.Today))
+        {
+            formError = "Cannot create or update a schedule in the past.";
+            return;
+        }
+
+        if (endTime <= startTime)
+        {
+            formError = "End time must be later than start time.";
+            return;
+        }
+
+        isSaving = true;
+
+        try
+        {
+            if (editingId.HasValue)
+            {
+                var request = new UpdateScheduleDto
+                {
+                    DoctorId = selectedFormDoctorId,
+                    DepartmentId = selectedFormDepartmentId,
+                    SlotDate = date,
+                    StartTime = startTime,
+                    EndTime = endTime
+                };
+
+                await ScheduleService.UpdateAsync(
+                    editingId.Value,
+                    request);
+
+                successMessage = "Schedule updated successfully.";
+            }
+            else
+            {
+                var request = new CreateScheduleDto
+                {
+                    DoctorId = selectedFormDoctorId,
+                    DepartmentId = selectedFormDepartmentId,
+                    SlotDate = date,
+                    StartTime = startTime,
+                    EndTime = endTime,
+                    SlotDurationMinutes = slotDuration
+                };
+
+                var createdSlots = await ScheduleService.CreateAsync(request);
+
+                successMessage =
+                    $"Successfully created {createdSlots.Count} schedule slots.";
+            }
+
+            showForm = false;
+            editingId = null;
+
+            await LoadSchedules();
+        }
+        catch (HttpRequestException ex)
+        {
+            formError = ex.Message;
+            HandleApiError(ex);
+        }
+        catch
+        {
+            formError = "Unable to save schedule.";
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    // ACTIVATE / DEACTIVATE
+
+    private async Task ToggleStatus(DoctorScheduleDto item)
+    {
+        if (updatingId.HasValue)
+            return;
+
+        updatingId = item.ScheduleSlotId;
+
+        errorMessage = string.Empty;
+        successMessage = string.Empty;
+
+        try
+        {
+            await ScheduleService.UpdateStatusAsync(
+                item.ScheduleSlotId,
+                !item.IsActive);
+
+            successMessage = item.IsActive
+                ? "Schedule deactivated successfully."
+                : "Schedule activated successfully.";
+
+            await LoadSchedules();
+        }
+        catch (HttpRequestException ex)
+        {
+            HandleApiError(ex);
+        }
+        catch
+        {
+            errorMessage = "Unable to update schedule status.";
+        }
+        finally
+        {
+            updatingId = null;
+        }
+    }
+
+    // API ERROR HANDLING
+
+    private void HandleApiError(HttpRequestException ex)
+    {
+        if (ex.StatusCode == System.Net.HttpStatusCode.Unauthorized ||
+            ex.StatusCode == System.Net.HttpStatusCode.Forbidden)
+        {
+            AuthService.Logout();
+            Navigation.NavigateTo("/login", true);
+            return;
+        }
+
+        errorMessage = ex.Message;
+    }
+}

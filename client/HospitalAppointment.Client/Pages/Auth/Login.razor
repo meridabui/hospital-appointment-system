@@ -1,4 +1,4 @@
-﻿@page "/login"
+﻿2@page "/login"
 @inject ApiClient Api
 @inject AuthSession Session
 @inject NavigationManager Nav
@@ -11,7 +11,111 @@
 
         @if (!string.IsNullOrEmpty(_error))
         {
-            <div class="alert alert-danger" role="alert">@_error</div>
+            <div class="logged-in-panel">
+                <div class="success-icon">✓</div>
+
+                <h3>Welcome back!</h3>
+
+                <p>
+                    @AuthService.CurrentUser.FullName
+                </p>
+
+                <div class="user-info">
+                    <div>
+                        <span>Username</span>
+                        <strong>@AuthService.CurrentUser.Username</strong>
+                    </div>
+
+                    <div>
+                        <span>Role</span>
+                        <strong>@AuthService.CurrentUser.Role</strong>
+                    </div>
+                </div>
+
+                @if (AuthService.CurrentUser.Role == "Nurse")
+                        {
+                            <button class="login-button"
+                                    @onclick="GoToDashboard">
+                                Go to Nurse Dashboard
+                            </button>
+                        }
+                        else if (AuthService.CurrentUser.Role == "MedicalServiceManager")
+                        {
+                            <button class="login-button"
+                                    @onclick="GoToDashboard">
+                                Go to Department Management
+                            </button>
+                }
+                else if (AuthService.CurrentUser.Role == "SchedulingManager")
+                {
+                    <button class="login-button"
+                            @onclick="GoToDashboard">
+                        Go to Schedule Management
+                    </button>
+                }
+
+                <button class="logout-button"
+                        @onclick="Logout">
+                    Logout
+                </button>
+            </div>
+        }
+        else
+        {
+            <div class="login-form">
+                <h3>Sign in</h3>
+                <p class="form-description">
+                    Please enter your account information.
+                </p>
+
+                <EditForm Model="@loginRequest"
+                          OnValidSubmit="@HandleLogin">
+
+                    <DataAnnotationsValidator />
+
+                    <div class="form-group">
+                        <label>Username or Email</label>
+
+                        <InputText class="form-input"
+                                   @bind-Value="loginRequest.UsernameOrEmail"
+                                   placeholder="Enter username or email" />
+
+                        <ValidationMessage For="@(() => loginRequest.UsernameOrEmail)" />
+                    </div>
+
+                    <div class="form-group">
+                        <label>Password</label>
+
+                        <InputText class="form-input"
+                                   type="password"
+                                   @bind-Value="loginRequest.Password"
+                                   placeholder="Enter password" />
+
+                        <ValidationMessage For="@(() => loginRequest.Password)" />
+                    </div>
+
+                    @if (!string.IsNullOrWhiteSpace(errorMessage))
+                    {
+                        <div class="error-message">
+                            @errorMessage
+                        </div>
+                    }
+
+                    <button type="submit"
+                            class="login-button"
+                            disabled="@isLoading">
+
+                        @if (isLoading)
+                        {
+                            <span>Signing in...</span>
+                        }
+                        else
+                        {
+                            <span>Sign In</span>
+                        }
+                    </button>
+                </EditForm>
+            </div>
         }
 
         <EditForm Model="_model" OnValidSubmit="SubmitAsync">
@@ -65,6 +169,92 @@
         {
             _error = result.ErrorMessage;
             return;
+    
+    private async Task HandleLogin()
+    {
+        if (isLoading)
+            return;
+
+        isLoading = true;
+        errorMessage = string.Empty;
+
+        try
+        {
+            var user = await AuthService.LoginAsync(loginRequest);
+
+            if (user == null || string.IsNullOrWhiteSpace(user.Role))
+            {
+                AuthService.Logout();
+                errorMessage = "Unable to identify your account role.";
+                return;
+            }
+
+            var role = user.Role
+                .Trim()
+                .Replace(" ", "")
+                .ToLowerInvariant();
+
+            switch (role)
+            {
+                case "nurse":
+                    Navigation.NavigateTo("/nurse/dashboard");
+                    break;
+
+                case "medicalservicemanager":
+                    Navigation.NavigateTo("/manager/departments");
+                    break;
+
+                case "schedulingmanager":
+                    Navigation.NavigateTo("/manager/schedules");
+                    break;
+
+                default:
+                    AuthService.Logout();
+
+                    errorMessage = $"Role '{user.Role}' is not authorized.";
+
+                    break;
+            }
+        }
+        catch (UnauthorizedAccessException)
+        {
+            errorMessage = "Invalid username or password.";
+        }
+        catch (HttpRequestException ex)
+        {
+            errorMessage = $"Cannot connect to API: {ex.Message}";
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Login error: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+
+    private void GoToDashboard()
+    {
+        switch (AuthService.CurrentUser?.Role?.Trim())
+        {
+            case "Nurse":
+                Navigation.NavigateTo("/nurse/dashboard");
+                break;
+
+            case "MedicalServiceManager":
+                Navigation.NavigateTo("/manager/departments");
+                break;
+
+            case "SchedulingManager":
+                Navigation.NavigateTo("/manager/schedules");
+                break;
+
+            default:
+                AuthService.Logout();
+                Navigation.NavigateTo("/login", true);
+                break;
         }
 
         await Session.SignInAsync(result.Data);
@@ -78,5 +268,10 @@
             return ReturnUrl;
 
         return Session.IsInRole("Patient") ? "book-appointment" : "";
+    private void Logout()
+    {
+        AuthService.Logout();
+        loginRequest = new LoginRequestDto();
+        errorMessage = string.Empty;
     }
 }
