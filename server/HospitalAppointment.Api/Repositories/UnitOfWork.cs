@@ -35,6 +35,9 @@ public class UnitOfWork : IUnitOfWork
     public IDoctorRepository Doctors { get; }
     public IScheduleSlotRepository ScheduleSlots { get; }
 
+    private IAppointmentRepository? _appointments;
+    public IAppointmentRepository Appointments => _appointments ??= new AppointmentRepository(_db);
+
     public Task<int> SaveChangesAsync() => _db.SaveChangesAsync();
 
     public Task<IDbContextTransaction> BeginTransactionAsync() => _db.Database.BeginTransactionAsync();

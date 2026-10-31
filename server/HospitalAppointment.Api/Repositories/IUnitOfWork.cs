@@ -11,7 +11,7 @@ public interface IUnitOfWork
     IDepartmentRepository Departments { get; }
     IDoctorRepository Doctors { get; }
     IScheduleSlotRepository ScheduleSlots { get; }
-
+    IAppointmentRepository Appointments { get; }
     Task<int> SaveChangesAsync();
     Task<IDbContextTransaction> BeginTransactionAsync(); // phần C dùng cho Submit Booking
 }

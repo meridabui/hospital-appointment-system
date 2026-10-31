@@ -11,6 +11,8 @@ public interface IScheduleSlotRepository
 
     Task<List<(int DoctorId, DateOnly SlotDate)>> GetAvailableSlotDatesAsync(
         IReadOnlyCollection<int> doctorIds, int departmentId, DateOnly today, TimeOnly now, DateOnly toDate);
+
+    Task<DoctorScheduleSlot?> GetByIdAsync(int scheduleSlotId);
 }
 
 public class ScheduleSlotRepository : IScheduleSlotRepository
@@ -37,4 +39,6 @@ public class ScheduleSlotRepository : IScheduleSlotRepository
 
         return rows.Select(r => (r.DoctorId, r.SlotDate)).ToList();
     }
+    public Task<DoctorScheduleSlot?> GetByIdAsync(int scheduleSlotId)
+    => _db.DoctorScheduleSlots.AsNoTracking().FirstOrDefaultAsync(s => s.ScheduleSlotId == scheduleSlotId);
 }

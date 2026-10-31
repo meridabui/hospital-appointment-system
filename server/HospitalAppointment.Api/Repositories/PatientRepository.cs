@@ -8,6 +8,7 @@ public interface IPatientRepository
 {
     Task<Patient?> GetByUserIdAsync(int userId);
     void Add(Patient patient);
+    Task<Patient?> GetActiveByUserIdAsync(int userId);
 }
 
 public class PatientRepository : IPatientRepository
@@ -19,4 +20,7 @@ public class PatientRepository : IPatientRepository
         => _db.Patients.FirstOrDefaultAsync(p => p.UserId == userId);
 
     public void Add(Patient patient) => _db.Patients.Add(patient);
+    public Task<Patient?> GetActiveByUserIdAsync(int userId)
+    => _db.Patients.AsNoTracking()
+        .FirstOrDefaultAsync(p => p.UserId == userId && p.User != null && p.User.IsActive);
 }
