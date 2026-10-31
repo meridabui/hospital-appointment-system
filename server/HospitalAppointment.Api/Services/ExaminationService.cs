@@ -1,13 +1,8 @@
-﻿using HospitalAppointment.Api.Common.Exceptions;
 using HospitalAppointment.Api.DTOs.Examination;
+using HospitalAppointment.Api.Exceptions;
 using HospitalAppointment.Api.Models.Entities;
 using HospitalAppointment.Api.Models.Enums;
 using HospitalAppointment.Api.Repositories;
-using HospitalAppointment.Api.Repositories.Interfaces;
-
-// Trong Repositories có 2 IAppointmentRepository (đặt lịch và tiếp nhận).
-// Luồng khám dùng bản Interfaces (có FindByIdAsync, GetByDoctorStatusesAndDateAsync).
-using IAppointmentRepository = HospitalAppointment.Api.Repositories.Interfaces.IAppointmentRepository;
 
 namespace HospitalAppointment.Api.Services;
 
@@ -23,16 +18,11 @@ public class ExaminationService : IExaminationService
 
     private readonly IAppointmentRepository _appointmentRepository;
     private readonly IDoctorRepository _doctorRepository;
-    private readonly IAuditLogRepository _auditLogRepository;
 
-    public ExaminationService(
-        IAppointmentRepository appointmentRepository,
-        IDoctorRepository doctorRepository,
-        IAuditLogRepository auditLogRepository)
+    public ExaminationService(IAppointmentRepository appointmentRepository, IDoctorRepository doctorRepository)
     {
         _appointmentRepository = appointmentRepository;
         _doctorRepository = doctorRepository;
-        _auditLogRepository = auditLogRepository;
     }
 
     public async Task<List<ReadyPatientDto>> GetReadyPatientsAsync(int userId)
@@ -70,19 +60,17 @@ public class ExaminationService : IExaminationService
     {
         var doctor = await GetActiveDoctorAsync(userId);
 
-        var appointment = await _appointmentRepository.FindByIdAsync(appointmentId)
-            ?? throw new AppException("Không tìm thấy lịch hẹn.", StatusCodes.Status404NotFound);
+        var appointment = await _appointmentRepository.GetByIdAsync(appointmentId)
+            ?? throw new NotFoundException("Appointment not found.");
 
         if (appointment.DoctorId != doctor.DoctorId)
         {
-            throw new AppException("Lịch hẹn này không được phân công cho bạn.", StatusCodes.Status403Forbidden);
+            throw new UnauthorizedAccessException("This appointment is not assigned to you.");
         }
 
-        // Ném InvalidOperationException nếu trạng thái không phải ReadyForConsultation
         appointment.StartConsultation();
 
-        // Cùng DbContext (scoped) với appointment nên được lưu chung một lần
-        _auditLogRepository.Add(new AuditLog
+        _appointmentRepository.AddAuditLog(new AuditLog
         {
             UserId = userId,
             Action = "StartConsultation",
@@ -98,6 +86,6 @@ public class ExaminationService : IExaminationService
     private async Task<Doctor> GetActiveDoctorAsync(int userId)
     {
         return await _doctorRepository.GetActiveByUserIdAsync(userId)
-            ?? throw new AppException("Tài khoản của bạn không phải bác sĩ đang hoạt động.", StatusCodes.Status403Forbidden);
+            ?? throw new UnauthorizedAccessException("Your account is not an active doctor.");
     }
 }
