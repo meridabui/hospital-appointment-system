@@ -7,32 +7,30 @@ namespace HospitalAppointment.Api.Repositories;
 
 public interface IAppointmentRepository
 {
-    // Slot đang được một appointment còn hiệu lực giữ chỗ
+    // Đặt lịch
     Task<bool> IsSlotTakenAsync(int scheduleSlotId);
-
-    // Patient đã có appointment còn hiệu lực với cùng Doctor, cùng ngày và giờ
     Task<bool> PatientHasActiveAtAsync(int patientId, int doctorId, DateOnly date, TimeOnly startTime);
-
-    // Lấy appointment theo Id (có tracking để cập nhật trạng thái)
-    Task<Appointment?> GetByIdAsync(int appointmentId);
-
-    Task<IReadOnlyList<Appointment>> SearchForReceptionAsync(
-        string? search,
-        DateOnly? date,
-        AppointmentStatus? status,
-        CancellationToken cancellationToken);
-
-    Task<Appointment?> GetForReceptionUpdateAsync(
-        int appointmentId,
-        CancellationToken cancellationToken);
-
-    // Appointment của bác sĩ theo các trạng thái trong một ngày (dùng cho danh sách chờ khám)
-    Task<List<Appointment>> GetByDoctorStatusesAndDateAsync(
-        int doctorId, IReadOnlyCollection<AppointmentStatus> statuses, DateOnly date);
-
     void Add(Appointment appointment);
+
+    // Lễ tân (3 lỗi của bạn nằm ở 2 hàm này)
+    Task<List<Appointment>> SearchForReceptionAsync(string? keyword, DateOnly? date = null);
+    Task<Appointment?> GetForReceptionUpdateAsync(int id);
+
+    // Tên cũ, giữ để code khác không vỡ
+    Task<List<Appointment>> SearchByCodeOrPatientNameAsync(string? keyword, DateOnly? date = null);
+    Task<Appointment?> FindByIdAsync(int id);
+    Task<List<Appointment>> SearchForReceptionAsync(
+    string? search, DateOnly? date, AppointmentStatus? status, CancellationToken cancellationToken);
+
+    Task<Appointment?> GetForReceptionUpdateAsync(int id, CancellationToken cancellationToken);
+
+    // Khám bệnh
+    Task<List<Appointment>> GetByDoctorStatusesAndDateAsync(int doctorId, AppointmentStatus[] statuses, DateOnly slotDate);
     void AddAuditLog(AuditLog log);
-    Task<int> SaveChangesAsync();
+
+    // Chung
+    Task UpdateAsync(Appointment appointment);
+    Task<bool> SaveChangesAsync();
 }
 
 public class AppointmentRepository : IAppointmentRepository
@@ -40,6 +38,7 @@ public class AppointmentRepository : IAppointmentRepository
     private readonly HospitalAppointmentDbContext _db;
     public AppointmentRepository(HospitalAppointmentDbContext db) => _db = db;
 
+    // ---------- Đặt lịch ----------
     public Task<bool> IsSlotTakenAsync(int scheduleSlotId)
         => _db.Appointments.AnyAsync(a => a.ScheduleSlotId == scheduleSlotId && a.IsActiveBooking);
 
@@ -50,78 +49,113 @@ public class AppointmentRepository : IAppointmentRepository
                                        && a.ScheduleSlot.SlotDate == date
                                        && a.ScheduleSlot.StartTime == startTime);
 
-    public Task<Appointment?> GetByIdAsync(int appointmentId)
-        => _db.Appointments
-            .Include(a => a.ScheduleSlot)
-            .FirstOrDefaultAsync(a => a.AppointmentId == appointmentId);
+    public void Add(Appointment appointment) => _db.Appointments.Add(appointment);
 
-    public async Task<IReadOnlyList<Appointment>> SearchForReceptionAsync(
-        string? search,
-        DateOnly? date,
-        AppointmentStatus? status,
-        CancellationToken cancellationToken)
+    // ---------- Lễ tân ----------
+    // Chỉ đọc nên dùng AsNoTracking
+    public async Task<List<Appointment>> SearchForReceptionAsync(string? keyword, DateOnly? date = null)
     {
-        var query = ReceptionQuery().AsNoTracking();
+        var query = _db.Appointments.AsNoTracking()
+            .Include(a => a.Patient)
+            .Include(a => a.Doctor).ThenInclude(d => d.Staff).ThenInclude(s => s.User)
+            .Include(a => a.Department)
+            .Include(a => a.ScheduleSlot)
+            .Include(a => a.CheckedInByUser)
+            .AsQueryable();
 
-        if (!string.IsNullOrWhiteSpace(search))
+        if (!string.IsNullOrWhiteSpace(keyword))
         {
-            var term = search.Trim();
-            query = query.Where(appointment =>
-                appointment.AppointmentCode.Contains(term) ||
-                appointment.Patient.PatientCode.Contains(term) ||
-                appointment.Patient.FullName.Contains(term) ||
-                (appointment.Patient.Phone != null && appointment.Patient.Phone.Contains(term)));
+            var k = keyword.Trim();
+            query = query.Where(a => a.AppointmentCode.Contains(k)
+                                  || a.Patient.FullName.Contains(k)
+                                  || (a.Patient.Phone != null && a.Patient.Phone.Contains(k)));
         }
 
         if (date.HasValue)
-        {
-            query = query.Where(appointment => appointment.ScheduleSlot.SlotDate == date.Value);
-        }
-
-        if (status.HasValue)
-        {
-            query = query.Where(appointment => appointment.Status == status.Value);
-        }
+            query = query.Where(a => a.ScheduleSlot.SlotDate == date.Value);
 
         return await query
-            .OrderBy(appointment => appointment.ScheduleSlot.SlotDate)
-            .ThenBy(appointment => appointment.ScheduleSlot.StartTime)
-            .Take(200)
-            .ToListAsync(cancellationToken);
+            .OrderBy(a => a.ScheduleSlot.SlotDate)
+            .ThenBy(a => a.ScheduleSlot.StartTime)
+            .ToListAsync();
     }
 
-    public Task<Appointment?> GetForReceptionUpdateAsync(
-        int appointmentId,
-        CancellationToken cancellationToken)
-        => ReceptionQuery().SingleOrDefaultAsync(
-            appointment => appointment.AppointmentId == appointmentId,
-            cancellationToken);
+    // Có tracking vì sau đó entity bị sửa (check-in / no-show) rồi lưu
+    public Task<Appointment?> GetForReceptionUpdateAsync(int id)
+        => _db.Appointments
+            .Include(a => a.ScheduleSlot)
+            .Include(a => a.Patient)
+            .Include(a => a.Doctor).ThenInclude(d => d.Staff).ThenInclude(s => s.User)
+            .Include(a => a.Department)
+            .Include(a => a.CheckedInByUser)
+            .FirstOrDefaultAsync(a => a.AppointmentId == id);
 
-    public Task<List<Appointment>> GetByDoctorStatusesAndDateAsync(
-        int doctorId, IReadOnlyCollection<AppointmentStatus> statuses, DateOnly date)
+    // Tên cũ -> chuyển sang hàm mới
+    public Task<List<Appointment>> SearchByCodeOrPatientNameAsync(string? keyword, DateOnly? date = null)
+        => SearchForReceptionAsync(keyword, date);
+
+    public Task<Appointment?> FindByIdAsync(int id)
+        => GetForReceptionUpdateAsync(id);
+
+    // ---------- Khám bệnh ----------
+    public Task<List<Appointment>> GetByDoctorStatusesAndDateAsync(int doctorId, AppointmentStatus[] statuses, DateOnly slotDate)
         => _db.Appointments.AsNoTracking()
             .Include(a => a.ScheduleSlot)
             .Include(a => a.Department)
             .Include(a => a.Patient)
             .Where(a => a.DoctorId == doctorId
                      && statuses.Contains(a.Status)
-                     && a.ScheduleSlot.SlotDate == date)
+                     && a.ScheduleSlot.SlotDate == slotDate)
             .OrderBy(a => a.ReadyAt)
             .ThenBy(a => a.ScheduleSlot.StartTime)
             .ToListAsync();
 
-    public void Add(Appointment appointment) => _db.Appointments.Add(appointment);
-
     public void AddAuditLog(AuditLog log) => _db.AuditLogs.Add(log);
 
-    public Task<int> SaveChangesAsync() => _db.SaveChangesAsync();
+    // ---------- Chung ----------
+    public Task UpdateAsync(Appointment appointment)
+    {
+        _db.Appointments.Update(appointment);
+        return Task.CompletedTask;
+    }
 
-    private IQueryable<Appointment> ReceptionQuery()
+    public async Task<bool> SaveChangesAsync() => await _db.SaveChangesAsync() > 0;
+    public async Task<List<Appointment>> SearchForReceptionAsync(
+    string? search, DateOnly? date, AppointmentStatus? status, CancellationToken cancellationToken)
+    {
+        var query = _db.Appointments.AsNoTracking()
+            .Include(a => a.Patient)
+            .Include(a => a.Doctor).ThenInclude(d => d.Staff).ThenInclude(s => s.User)
+            .Include(a => a.Department)
+            .Include(a => a.ScheduleSlot)
+            .AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var k = search.Trim();
+            query = query.Where(a => a.AppointmentCode.Contains(k)
+                                  || a.Patient.FullName.Contains(k)
+                                  || (a.Patient.Phone != null && a.Patient.Phone.Contains(k)));
+        }
+
+        if (date.HasValue)
+            query = query.Where(a => a.ScheduleSlot.SlotDate == date.Value);
+
+        if (status.HasValue)
+            query = query.Where(a => a.Status == status.Value);
+
+        return await query
+            .OrderBy(a => a.ScheduleSlot.SlotDate)
+            .ThenBy(a => a.ScheduleSlot.StartTime)
+            .ToListAsync(cancellationToken);
+    }
+
+    // Có tracking vì sau đó entity bị sửa rồi lưu
+    public Task<Appointment?> GetForReceptionUpdateAsync(int id, CancellationToken cancellationToken)
         => _db.Appointments
-            .Include(appointment => appointment.Patient)
-            .Include(appointment => appointment.Doctor)
-                .ThenInclude(doctor => doctor.Staff)
-                    .ThenInclude(staff => staff.User)
-            .Include(appointment => appointment.Department)
-            .Include(appointment => appointment.ScheduleSlot);
+            .Include(a => a.ScheduleSlot)
+            .Include(a => a.Patient)
+            .Include(a => a.Doctor).ThenInclude(d => d.Staff).ThenInclude(s => s.User)
+            .Include(a => a.Department)
+            .FirstOrDefaultAsync(a => a.AppointmentId == id, cancellationToken);
 }

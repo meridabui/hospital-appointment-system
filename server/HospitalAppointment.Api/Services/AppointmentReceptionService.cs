@@ -1,8 +1,8 @@
 using HospitalAppointment.Api.DTOs.Reception;
 using HospitalAppointment.Api.Models.Entities;
 using HospitalAppointment.Api.Models.Enums;
-using HospitalAppointment.Api.Repositories.Interfaces;
 namespace HospitalAppointment.Api.Services;
+using HospitalAppointment.Api.Repositories;
 
 public class AppointmentReceptionService : IAppointmentReceptionService
 {

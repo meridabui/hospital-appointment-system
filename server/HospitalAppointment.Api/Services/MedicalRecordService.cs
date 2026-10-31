@@ -6,7 +6,7 @@ using HospitalAppointment.Api.Repositories;
 using Microsoft.EntityFrameworkCore;
 
 // Có 2 IAppointmentRepository; luồng khám dùng bản Interfaces (có FindByIdAsync)
-using IAppointmentRepository = HospitalAppointment.Api.Repositories.Interfaces.IAppointmentRepository;
+using IAppointmentRepository = HospitalAppointment.Api.Repositories.IAppointmentRepository;
 
 namespace HospitalAppointment.Api.Services;
 

@@ -10,10 +10,8 @@ using Microsoft.OpenApi.Models;
 using System.Security.Claims;
 using System.Text;
 
+
 var builder = WebApplication.CreateBuilder(args);
-builder.Services.AddDbContext<HospitalAppointmentDbContext>(
-    options => options.UseSqlServer(
-        builder.Configuration.GetConnectionString("DefaultConnection")));
 
 // 1. Database
 builder.Services.AddDbContext<HospitalAppointmentDbContext>(
@@ -67,11 +65,10 @@ builder.Services.AddScoped<INurseService, NurseService>();
 builder.Services.AddScoped<IDepartmentRepository, DepartmentRepository>();
 builder.Services.AddScoped<IDepartmentService, DepartmentService>();
 // AppointmentRepository hiện thực 2 interface cùng tên ở 2 namespace -> đăng ký cả hai
-builder.Services.AddScoped<HospitalAppointment.Api.Repositories.IAppointmentRepository, AppointmentRepository>();
-builder.Services.AddScoped<HospitalAppointment.Api.Repositories.Interfaces.IAppointmentRepository, AppointmentRepository>();
 builder.Services.AddScoped<IAppointmentReceptionService, AppointmentReceptionService>();
 builder.Services.AddScoped<IMedicalRecordRepository, MedicalRecordRepository>();
 builder.Services.AddScoped<IMedicalRecordService, MedicalRecordService>();
+builder.Services.AddScoped<IAppointmentRepository, AppointmentRepository>();
 
 builder.Services.AddScoped<
     IMedicalServiceRepository,
