@@ -75,7 +75,7 @@ public class NurseService : INurseService
 
         appointment.Status = AppointmentStatus.ReadyForConsultation;
         appointment.ReadyAt = DateTime.UtcNow;
-        appointment.ReadyBy = nurseUserId;
+        //appointment.ReadyBy = nurseUserId;
 
         try
         {
@@ -115,8 +115,8 @@ public class NurseService : INurseService
 
             Status = appointment.Status.ToString(),
             CheckedInAt = appointment.CheckedInAt,
-            ReadyAt = appointment.ReadyAt,
-            ReadyBy = appointment.ReadyBy
+            ReadyAt = appointment.ReadyAt
+            //ReadyBy = appointment.ReadyBy
         };
     }
 }

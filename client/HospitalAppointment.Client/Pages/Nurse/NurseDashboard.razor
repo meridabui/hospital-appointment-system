@@ -1,21 +1,529 @@
-﻿@page "/nurse/dashboard"
+﻿
+@page "/nurse/dashboard"
+
+@using HospitalAppointment.Client.Models.Nurse
+@using HospitalAppointment.Client.Services
+
+@inject NurseApiService NurseService
 @inject AuthApiService AuthService
 @inject NavigationManager Navigation
 
 <PageTitle>Nurse Dashboard</PageTitle>
 
-<h3>Welcome to Nurse Dashboard</h3>
+<div class="nurse-dashboard">
 
-@if (AuthService.CurrentUser != null)
-{
-    <p>Welcome, @AuthService.CurrentUser.FullName</p>
-    <p>Role: @AuthService.CurrentUser.Role</p>
-}
+    <!-- Header -->
+    <div class="dashboard-header">
+        <div>
+            <h2>Nurse Dashboard</h2>
+            <p>Patient reception and preparation management</p>
+        </div>
 
-<button @onclick="Logout">Logout</button>
+        <div class="nurse-profile">
+            <div class="avatar">N</div>
+            <div>
+                <strong>@AuthService.CurrentUser?.FullName</strong>
+                <span>Nurse</span>
+            </div>
+        </div>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(errorMessage))
+    {
+        <div class="alert-error">
+            @errorMessage
+        </div>
+    }
+
+    <!-- Statistics -->
+    <div class="stats-grid">
+
+        <div class="stat-card">
+            <div class="stat-icon blue">P</div>
+            <div>
+                <span>Waiting for preparation</span>
+                <h3>@appointments.Count</h3>
+            </div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-icon orange">C</div>
+            <div>
+                <span>Checked-in patients</span>
+                <h3>@appointments.Count</h3>
+            </div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-icon green">N</div>
+            <div>
+                <span>Current nurse</span>
+                <h3 class="nurse-name">@AuthService.CurrentUser?.Username</h3>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Patient list -->
+    <div class="content-card">
+
+        <div class="section-header">
+            <div>
+                <h3>Waiting Patients</h3>
+                <p>Patients who have checked in and are waiting for preparation.</p>
+            </div>
+
+            <button class="refresh-button"
+                    @onclick="LoadAppointmentsAsync"
+                    disabled="@isLoading">
+                ↻ Refresh
+            </button>
+        </div>
+
+        <div class="search-box">
+            <input type="text"
+                   @bind="searchTerm"
+                   @bind:event="oninput"
+                   placeholder="Search patient name, code or appointment..." />
+        </div>
+
+        @if (isLoading)
+        {
+            <div class="loading-state">
+                Loading patient appointments...
+            </div>
+        }
+        else if (FilteredAppointments.Count == 0)
+        {
+            <div class="empty-state">
+                <div class="empty-icon">✓</div>
+
+                <h4>No waiting patients</h4>
+
+                <p>
+                    There are currently no checked-in patients
+                    waiting for preparation.
+                </p>
+            </div>
+        }
+        else
+        {
+            <div class="table-container">
+                <table class="patient-table">
+                    <thead>
+                        <tr>
+                            <th>Appointment</th>
+                            <th>Patient</th>
+                            <th>Doctor</th>
+                            <th>Department</th>
+                            <th>Appointment Time</th>
+                            <th>Status</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        @foreach (var item in FilteredAppointments)
+                        {
+                            <tr @key="item.AppointmentId">
+
+                                <td>
+                                    <strong>@item.AppointmentCode</strong>
+                                </td>
+
+                                <td>
+                                    <div class="patient-info">
+                                        <strong>@item.PatientName</strong>
+                                        <span>@item.PatientCode</span>
+                                        <span>@item.PatientPhone</span>
+                                    </div>
+                                </td>
+
+                                <td>@item.DoctorName</td>
+
+                                <td>@item.DepartmentName</td>
+
+                                <td>
+                                    <div class="time-info">
+                                        <strong>@item.StartTime.ToString("HH:mm") - @item.EndTime.ToString("HH:mm")</strong>
+                                        <span>@item.SlotDate.ToString("dd/MM/yyyy")</span>
+                                    </div>
+                                </td>
+
+                                <td>
+                                    <span class="status-badge">
+                                        @item.Status
+                                    </span>
+                                </td>
+
+                                <td>
+                                    <button class="prepare-button"
+                                            @onclick="() => OpenPreparation(item.AppointmentId)">
+                                        Prepare Patient
+                                    </button>
+                                </td>
+
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+
+        <div class="table-footer">
+            Showing @FilteredAppointments.Count of @appointments.Count patients
+        </div>
+
+    </div>
+
+</div>
+
+<style>
+    .nurse-dashboard {
+        padding: 28px;
+        background: #f8fafc;
+        min-height: 100vh;
+    }
+
+    .dashboard-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 28px;
+        gap: 16px;
+    }
+
+    .dashboard-header h2 {
+        font-size: 26px;
+        color: #172554;
+        font-weight: 700;
+        margin: 0;
+    }
+
+    .dashboard-header p {
+        color: #64748b;
+        margin: 7px 0 0;
+        font-size: 14px;
+    }
+
+    .nurse-profile {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .avatar {
+        width: 43px;
+        height: 43px;
+        border-radius: 50%;
+        background: #dbeafe;
+        color: #1d4ed8;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        font-weight: 700;
+    }
+
+    .nurse-profile strong,
+    .nurse-profile span {
+        display: block;
+    }
+
+    .nurse-profile strong {
+        color: #1e293b;
+        font-size: 14px;
+    }
+
+    .nurse-profile span {
+        color: #64748b;
+        font-size: 12px;
+        margin-top: 3px;
+    }
+
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 18px;
+        margin-bottom: 25px;
+    }
+
+    .stat-card {
+        background: white;
+        padding: 22px;
+        border-radius: 10px;
+        border: 1px solid #e2e8f0;
+        display: flex;
+        align-items: center;
+        gap: 15px;
+    }
+
+    .stat-icon {
+        width: 46px;
+        height: 46px;
+        border-radius: 9px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        font-size: 18px;
+    }
+
+    .stat-icon.blue {
+        background: #dbeafe;
+        color: #2563eb;
+    }
+
+    .stat-icon.orange {
+        background: #ffedd5;
+        color: #ea580c;
+    }
+
+    .stat-icon.green {
+        background: #dcfce7;
+        color: #15803d;
+    }
+
+    .stat-card span {
+        font-size: 13px;
+        color: #64748b;
+    }
+
+    .stat-card h3 {
+        font-size: 23px;
+        margin: 5px 0 0;
+        color: #1e293b;
+    }
+
+    .stat-card .nurse-name {
+        font-size: 16px;
+    }
+
+    .content-card {
+        background: white;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        padding: 24px;
+    }
+
+    .section-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 15px;
+        margin-bottom: 22px;
+    }
+
+    .section-header h3 {
+        color: #1e293b;
+        font-size: 19px;
+        margin: 0;
+    }
+
+    .section-header p {
+        color: #64748b;
+        font-size: 13px;
+        margin: 6px 0 0;
+    }
+
+    .refresh-button {
+        background: white;
+        border: 1px solid #cbd5e1;
+        border-radius: 6px;
+        padding: 9px 15px;
+        cursor: pointer;
+        color: #334155;
+    }
+
+    .refresh-button:hover {
+        background: #f1f5f9;
+    }
+
+    .search-box {
+        margin-bottom: 20px;
+    }
+
+    .search-box input {
+        width: 100%;
+        max-width: 450px;
+        height: 42px;
+        padding: 0 13px;
+        border: 1px solid #cbd5e1;
+        border-radius: 7px;
+        outline: none;
+        box-sizing: border-box;
+    }
+
+    .search-box input:focus {
+        border-color: #2563eb;
+    }
+
+    .table-container {
+        overflow-x: auto;
+    }
+
+    .patient-table {
+        width: 100%;
+        border-collapse: collapse;
+        white-space: nowrap;
+    }
+
+    .patient-table th {
+        background: #f8fafc;
+        padding: 14px 12px;
+        text-align: left;
+        font-size: 12px;
+        color: #64748b;
+        font-weight: 600;
+        border-bottom: 1px solid #e2e8f0;
+    }
+
+    .patient-table td {
+        padding: 15px 12px;
+        border-bottom: 1px solid #f1f5f9;
+        font-size: 13px;
+        color: #334155;
+    }
+
+    .patient-table tbody tr:hover {
+        background: #f8fafc;
+    }
+
+    .patient-info strong,
+    .patient-info span,
+    .time-info strong,
+    .time-info span {
+        display: block;
+    }
+
+    .patient-info strong,
+    .time-info strong {
+        color: #1e293b;
+    }
+
+    .patient-info span,
+    .time-info span {
+        color: #64748b;
+        font-size: 12px;
+        margin-top: 4px;
+    }
+
+    .status-badge {
+        display: inline-block;
+        padding: 5px 10px;
+        background: #ffedd5;
+        color: #c2410c;
+        border-radius: 20px;
+        font-size: 11px;
+        font-weight: 600;
+    }
+
+    .prepare-button {
+        padding: 8px 12px;
+        background: #2563eb;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 12px;
+        font-weight: 600;
+    }
+
+    .prepare-button:hover {
+        background: #1d4ed8;
+    }
+
+    .loading-state,
+    .empty-state {
+        text-align: center;
+        padding: 55px 20px;
+        color: #64748b;
+    }
+
+    .empty-icon {
+        width: 50px;
+        height: 50px;
+        margin: 0 auto 15px;
+        background: #dcfce7;
+        color: #15803d;
+        border-radius: 50%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        font-size: 23px;
+    }
+
+    .empty-state h4 {
+        color: #334155;
+        margin-bottom: 7px;
+    }
+
+    .empty-state p {
+        font-size: 13px;
+    }
+
+    .table-footer {
+        color: #64748b;
+        font-size: 12px;
+        margin-top: 17px;
+    }
+
+    .alert-error {
+        padding: 13px 16px;
+        background: #fef2f2;
+        color: #b91c1c;
+        border: 1px solid #fecaca;
+        border-radius: 7px;
+        margin-bottom: 20px;
+    }
+
+    @@media (max-width: 900px) {
+        .stats-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .dashboard-header {
+            align-items: flex-start;
+            flex-direction: column;
+        }
+    }
+
+    @@media (max-width: 600px) {
+        .nurse-dashboard {
+            padding: 15px;
+        }
+
+        .content-card {
+            padding: 15px;
+        }
+
+        .section-header {
+            align-items: flex-start;
+            flex-direction: column;
+        }
+    }
+</style>
 
 @code {
-    protected override void OnInitialized()
+    private List<NurseAppointmentDto> appointments = new();
+
+    private string searchTerm = string.Empty;
+    private string errorMessage = string.Empty;
+
+    private bool isLoading;
+
+    private List<NurseAppointmentDto> FilteredAppointments =>
+        appointments
+            .Where(a =>
+                string.IsNullOrWhiteSpace(searchTerm) ||
+                a.PatientName.Contains(searchTerm,
+                    StringComparison.OrdinalIgnoreCase) ||
+                a.PatientCode.Contains(searchTerm,
+                    StringComparison.OrdinalIgnoreCase) ||
+                a.AppointmentCode.Contains(searchTerm,
+                    StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+    protected override async Task OnInitializedAsync()
     {
         if (!AuthService.IsLoggedIn ||
             !string.Equals(
@@ -24,12 +532,48 @@
                 StringComparison.OrdinalIgnoreCase))
         {
             Navigation.NavigateTo("/login", true);
+            return;
+        }
+
+        await LoadAppointmentsAsync();
+    }
+
+    private async Task LoadAppointmentsAsync()
+    {
+        if (isLoading)
+            return;
+
+        isLoading = true;
+        errorMessage = string.Empty;
+
+        try
+        {
+            appointments =
+                await NurseService.GetCheckedInAppointmentsAsync();
+        }
+        catch (HttpRequestException ex)
+        {
+            errorMessage = ex.Message;
+
+            if (ex.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+            {
+                AuthService.Logout();
+                Navigation.NavigateTo("/login", true);
+            }
+        }
+        catch (Exception)
+        {
+            errorMessage = "Unable to load patient appointments.";
+        }
+        finally
+        {
+            isLoading = false;
         }
     }
 
-    private void Logout()
+    private void OpenPreparation(int appointmentId)
     {
-        AuthService.Logout();
-        Navigation.NavigateTo("/login", true);
+        Navigation.NavigateTo(
+            $"/nurse/patient-preparation/{appointmentId}");
     }
 }

@@ -1,16 +1,78 @@
-﻿@inherits LayoutComponentBase
-<div class="page">
-    <div class="sidebar">
-        <NavMenu />
-    </div>
+﻿
+@inherits LayoutComponentBase
 
-    <main>
-        <div class="top-row px-4">
-            <a href="https://learn.microsoft.com/aspnet/core/" target="_blank">About</a>
+<div class="app-layout">
+
+    <aside class="app-sidebar">
+        <NavMenu />
+    </aside>
+
+    <main class="app-main">
+        <div class="app-topbar">
+            <span>Hospital Appointment Management System</span>
         </div>
 
-        <article class="content px-4">
+        <div class="app-content">
             @Body
-        </article>
+        </div>
     </main>
+
 </div>
+
+<style>
+    .app-layout {
+        display: flex;
+        min-height: 100vh;
+    }
+
+    .app-sidebar {
+        width: 250px;
+        flex-shrink: 0;
+    }
+
+    .app-main {
+        flex: 1;
+        min-width: 0;
+        background: #f8fafc;
+    }
+
+    .app-topbar {
+        height: 65px;
+        background: white;
+        border-bottom: 1px solid #e2e8f0;
+        display: flex;
+        align-items: center;
+        padding: 0 25px;
+        color: #64748b;
+        font-size: 13px;
+    }
+
+    .app-content {
+        min-width: 0;
+    }
+
+    @@media (max-width: 750px) {
+        .app-sidebar {
+            width: 190px;
+        }
+    }
+
+    @@media (max-width: 550px) {
+        .app-layout {
+            flex-direction: column;
+        }
+
+        .app-sidebar {
+            width: 100%;
+            min-height: auto;
+        }
+
+        .app-sidebar .sidebar {
+            min-height: auto;
+        }
+
+        .sidebar-user {
+            margin-top: 20px;
+        }
+    }
+</style>

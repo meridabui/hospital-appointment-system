@@ -1,4 +1,6 @@
-﻿using HospitalAppointment.Client.Models.Nurse;
+﻿
+using HospitalAppointment.Client.Models.Nurse;
+using System.Net;
 using System.Net.Http.Json;
 
 namespace HospitalAppointment.Client.Services;
@@ -16,30 +18,32 @@ public class NurseApiService
     public async Task<List<NurseAppointmentDto>>
         GetCheckedInAppointmentsAsync()
     {
-        var result = await _httpClient.GetFromJsonAsync<
-            List<NurseAppointmentDto>>(
-                "api/Nurse/appointments/checked-in");
+        var response = await _httpClient.GetAsync(
+            "api/Nurse/appointments/checked-in");
 
-        return result ?? new List<NurseAppointmentDto>();
+        await EnsureSuccessAsync(response);
+
+        return await response.Content.ReadFromJsonAsync<
+            List<NurseAppointmentDto>>() ?? new List<NurseAppointmentDto>();
     }
 
     // 2. Lấy chi tiết Appointment
-    public async Task<NurseAppointmentDto?>
+    public async Task<NurseAppointmentDto>
         GetAppointmentDetailAsync(int appointmentId)
     {
         var response = await _httpClient.GetAsync(
             $"api/Nurse/appointments/{appointmentId}");
 
-        if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
-            return null;
+        await EnsureSuccessAsync(response);
 
-        response.EnsureSuccessStatusCode();
-
-        return await response.Content.ReadFromJsonAsync<
+        var result = await response.Content.ReadFromJsonAsync<
             NurseAppointmentDto>();
+
+        return result ?? throw new InvalidOperationException(
+            "The server returned an empty appointment.");
     }
 
-    // 3. MarkReady
+    // 3. Xác nhận bệnh nhân sẵn sàng khám
     public async Task<MarkReadyResponseDto> MarkReadyAsync(
         int appointmentId)
     {
@@ -47,12 +51,42 @@ public class NurseApiService
             $"api/Nurse/appointments/{appointmentId}/mark-ready",
             null);
 
-        response.EnsureSuccessStatusCode();
+        await EnsureSuccessAsync(response);
 
-        var result = await response.Content
-            .ReadFromJsonAsync<MarkReadyResponseDto>();
+        var result = await response.Content.ReadFromJsonAsync<
+            MarkReadyResponseDto>();
 
         return result ?? throw new InvalidOperationException(
-            "Server không trả về kết quả MarkReady.");
+            "The server returned an empty MarkReady response.");
+    }
+
+    // Xử lý lỗi HTTP
+    private static async Task EnsureSuccessAsync(
+        HttpResponseMessage response)
+    {
+        if (response.IsSuccessStatusCode)
+            return;
+
+        var message = response.StatusCode switch
+        {
+            HttpStatusCode.Unauthorized =>
+                "Your session has expired. Please log in again.",
+
+            HttpStatusCode.Forbidden =>
+                "You do not have permission to perform this action.",
+
+            HttpStatusCode.NotFound =>
+                "The requested appointment was not found.",
+
+            HttpStatusCode.Conflict =>
+                "The appointment status has changed. Please refresh.",
+
+            _ => "An error occurred while communicating with the server."
+        };
+
+        throw new HttpRequestException(
+            message,
+            null,
+            response.StatusCode);
     }
 }
