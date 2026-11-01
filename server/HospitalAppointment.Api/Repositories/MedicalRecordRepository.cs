@@ -15,6 +15,8 @@ public interface IMedicalRecordRepository
     void RemovePrescriptionItem(PrescriptionItem item);
     void RemoveOrderedService(OrderedService orderedService);
     Task SaveChangesAsync();
+    Task<List<MedicalRecord>> GetFinalByPatientAsync(int patientId);
+    Task<MedicalRecord?> GetFinalDetailAsync(int appointmentId, int patientId);
 }
 
 public class MedicalRecordRepository : IMedicalRecordRepository
@@ -96,5 +98,32 @@ public class MedicalRecordRepository : IMedicalRecordRepository
     public Task SaveChangesAsync()
     {
         return _context.SaveChangesAsync();
+    }
+    public Task<List<MedicalRecord>> GetFinalByPatientAsync(int patientId)
+    {
+        return _context.MedicalRecords
+            .AsNoTracking()
+            .Include(r => r.Appointment).ThenInclude(a => a.ScheduleSlot)
+            .Include(r => r.Appointment).ThenInclude(a => a.Department)
+            .Include(r => r.Doctor).ThenInclude(d => d.Staff).ThenInclude(s => s.User)
+            .Where(r => r.PatientId == patientId && r.RecordStatus == RecordStatus.Final)
+            .OrderByDescending(r => r.Appointment.ScheduleSlot.SlotDate)
+            .ThenByDescending(r => r.Appointment.ScheduleSlot.StartTime)
+            .ToListAsync();
+    }
+
+    public Task<MedicalRecord?> GetFinalDetailAsync(int appointmentId, int patientId)
+    {
+        return _context.MedicalRecords
+            .AsNoTracking()
+            .Include(r => r.Appointment).ThenInclude(a => a.ScheduleSlot)
+            .Include(r => r.Appointment).ThenInclude(a => a.Department)
+            .Include(r => r.Doctor).ThenInclude(d => d.Staff).ThenInclude(s => s.User)
+            .Include(r => r.Prescription!).ThenInclude(p => p.Items)
+            .Include(r => r.OrderedServices).ThenInclude(o => o.MedicalService)
+            .AsSplitQuery()
+            .FirstOrDefaultAsync(r => r.AppointmentId == appointmentId
+                                   && r.PatientId == patientId
+                                   && r.RecordStatus == RecordStatus.Final);
     }
 }
