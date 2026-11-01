@@ -1,0 +1,233 @@
+@page "/reception/confirmations"
+@using HospitalAppointment.Client.Models.Confirmation
+@using HospitalAppointment.Client.Services
+@inject IAppointmentConfirmationApiClient ConfirmationApi
+
+<PageTitle>Xác nhận lịch hẹn</PageTitle>
+
+<RoleGuard Role="Receptionist" OnAuthorized="LoadAppointments">
+    <div class="container-fluid py-4">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+            <div>
+                <h2 class="fw-bold text-primary mb-1">
+                    <i class="bi bi-calendar-check me-2"></i>Xác nhận lịch hẹn
+                </h2>
+                <p class="text-muted mb-0">Xử lý các lịch hẹn đang chờ xác nhận.</p>
+            </div>
+            <button class="btn btn-outline-primary" @onclick="LoadAppointments" disabled="@isLoading">
+                <i class="bi bi-arrow-clockwise me-1"></i>Làm mới
+            </button>
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(alertMessage))
+        {
+            <div class="alert alert-@(alertIsSuccess ? "success" : "danger") alert-dismissible fade show" role="alert">
+                @alertMessage
+                <button type="button" class="btn-close" @onclick="ClearAlert"></button>
+            </div>
+        }
+
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-body">
+                <div class="row align-items-end g-3">
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold">Ngày khám</label>
+                        <input type="date" class="form-control" @bind="selectedDate" @bind:after="LoadAppointments" />
+                    </div>
+                    <div class="col-md-8 text-md-end">
+                        <span class="badge bg-warning text-dark px-3 py-2">
+                            @appointments.Count lịch hẹn đang chờ xác nhận
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card border-0 shadow-sm">
+            <div class="card-body p-0">
+                @if (isLoading)
+                {
+                    <div class="text-center py-5">
+                        <div class="spinner-border text-primary" role="status"></div>
+                        <p class="text-muted mt-2 mb-0">Đang tải lịch hẹn chờ xác nhận...</p>
+                    </div>
+                }
+                else if (appointments.Count == 0)
+                {
+                    <div class="text-center py-5 text-muted">
+                        <i class="bi bi-calendar-x" style="font-size: 3rem;"></i>
+                        <p class="mt-2 mb-0">Không có lịch hẹn chờ xác nhận.</p>
+                    </div>
+                }
+                else
+                {
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th class="ps-3">Mã hẹn</th>
+                                    <th>Bệnh nhân</th>
+                                    <th>Bác sĩ / Khoa</th>
+                                    <th>Thời gian khám</th>
+                                    <th>Lý do khám</th>
+                                    <th class="text-center pe-3">Thao tác</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var appointment in appointments)
+                                {
+                                    <tr>
+                                        <td class="ps-3"><span class="badge bg-light text-dark border font-monospace">@appointment.AppointmentCode</span></td>
+                                        <td>
+                                            <div class="fw-semibold">@appointment.PatientName</div>
+                                            <div class="small text-muted">@(appointment.PatientPhone ?? "Chưa có số điện thoại")</div>
+                                        </td>
+                                        <td>
+                                            <div>@appointment.DoctorName</div>
+                                            <div class="small text-muted">@appointment.DepartmentName</div>
+                                        </td>
+                                        <td>
+                                            <div>@appointment.SlotDate.ToString("dd/MM/yyyy")</div>
+                                            <div class="small text-muted">@appointment.StartTime.ToString("HH:mm") - @appointment.EndTime.ToString("HH:mm")</div>
+                                        </td>
+                                        <td class="small">@(string.IsNullOrWhiteSpace(appointment.BookingReason) ? "—" : appointment.BookingReason)</td>
+                                        <td class="text-center pe-3">
+                                            <button class="btn btn-sm btn-success me-2"
+                                                    disabled="@(processingAppointmentId.HasValue)"
+                                                    @onclick="() => ConfirmAsync(appointment)">
+                                                <i class="bi bi-check-lg me-1"></i>Xác nhận
+                                            </button>
+                                            <button class="btn btn-sm btn-outline-danger"
+                                                    disabled="@(processingAppointmentId.HasValue)"
+                                                    @onclick="() => OpenRejectModal(appointment)">
+                                                <i class="bi bi-x-lg me-1"></i>Từ chối
+                                            </button>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+
+    @if (showRejectModal && selectedAppointment is not null)
+    {
+        <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0, 0, 0, .5);">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content border-0 shadow">
+                    <div class="modal-header bg-danger text-white">
+                        <h5 class="modal-title">Từ chối lịch hẹn</h5>
+                        <button type="button" class="btn-close btn-close-white" @onclick="CloseRejectModal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p>Nhập lý do từ chối lịch <strong>@selectedAppointment.AppointmentCode</strong> của <strong>@selectedAppointment.PatientName</strong>.</p>
+                        <textarea class="form-control" rows="3" maxlength="500" placeholder="Lý do từ chối (bắt buộc)" @bind="rejectReason"></textarea>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" @onclick="CloseRejectModal">Hủy</button>
+                        <button type="button" class="btn btn-danger" disabled="@(string.IsNullOrWhiteSpace(rejectReason) || processingAppointmentId.HasValue)" @onclick="RejectAsync">
+                            Xác nhận từ chối
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</RoleGuard>
+
+@code {
+    private readonly List<ConfirmationAppointmentModel> appointments = new();
+    private DateOnly? selectedDate;
+    private bool isLoading = true;
+    private int? processingAppointmentId;
+    private string? alertMessage;
+    private bool alertIsSuccess;
+    private bool showRejectModal;
+    private ConfirmationAppointmentModel? selectedAppointment;
+    private string rejectReason = string.Empty;
+
+    private async Task LoadAppointments()
+    {
+        isLoading = true;
+        try
+        {
+            var result = await ConfirmationApi.GetPendingAsync(selectedDate);
+            appointments.Clear();
+            if (result.IsSuccess && result.Data is not null)
+            {
+                appointments.AddRange(result.Data);
+            }
+            else
+            {
+                ShowAlert(result.ErrorMessage ?? "Không thể tải danh sách lịch hẹn.", false);
+            }
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task ConfirmAsync(ConfirmationAppointmentModel appointment)
+    {
+        processingAppointmentId = appointment.AppointmentId;
+        var result = await ConfirmationApi.ConfirmAsync(appointment.AppointmentId);
+        processingAppointmentId = null;
+
+        if (result.IsSuccess)
+        {
+            appointments.Remove(appointment);
+            ShowAlert($"Đã xác nhận lịch hẹn {appointment.AppointmentCode}.", true);
+        }
+        else
+        {
+            ShowAlert(result.ErrorMessage ?? "Không thể xác nhận lịch hẹn.", false);
+        }
+    }
+
+    private void OpenRejectModal(ConfirmationAppointmentModel appointment)
+    {
+        selectedAppointment = appointment;
+        rejectReason = string.Empty;
+        showRejectModal = true;
+    }
+
+    private void CloseRejectModal()
+    {
+        showRejectModal = false;
+        selectedAppointment = null;
+        rejectReason = string.Empty;
+    }
+
+    private async Task RejectAsync()
+    {
+        if (selectedAppointment is null || string.IsNullOrWhiteSpace(rejectReason)) return;
+
+        processingAppointmentId = selectedAppointment.AppointmentId;
+        var result = await ConfirmationApi.RejectAsync(selectedAppointment.AppointmentId, rejectReason);
+        processingAppointmentId = null;
+
+        if (result.IsSuccess)
+        {
+            var appointmentCode = selectedAppointment.AppointmentCode;
+            appointments.Remove(selectedAppointment);
+            CloseRejectModal();
+            ShowAlert($"Đã từ chối lịch hẹn {appointmentCode}.", true);
+        }
+        else
+        {
+            ShowAlert(result.ErrorMessage ?? "Không thể từ chối lịch hẹn.", false);
+        }
+    }
+
+    private void ShowAlert(string message, bool success)
+    {
+        alertMessage = message;
+        alertIsSuccess = success;
+    }
+
+    private void ClearAlert() => alertMessage = null;
+}

@@ -12,6 +12,7 @@ builder.RootComponents.Add<HeadOutlet>("head::after");
 
 builder.Services.AddClientServices(builder.Configuration);
 builder.Services.AddScoped<IAppointmentReceptionApiClient, AppointmentReceptionApiClient>();
+builder.Services.AddScoped<IAppointmentConfirmationApiClient, AppointmentConfirmationApiClient>();
 
 // Register Services
 builder.Services.AddScoped<AuthApiService>();
