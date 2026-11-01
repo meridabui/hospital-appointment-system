@@ -1,6 +1,6 @@
 using HospitalAppointment.Api.Common.Exceptions;
-using HospitalAppointment.Api.DTOs.MedicalRecords;
 using HospitalAppointment.Api.DTOs.Patients;
+using HospitalAppointment.Api.DTOs.MedicalRecords; 
 using HospitalAppointment.Api.Models.Entities;
 using HospitalAppointment.Api.Repositories;
 

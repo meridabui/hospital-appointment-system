@@ -85,7 +85,6 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ICatalogService, CatalogService>();
         services.AddScoped<IPatientService, PatientService>();
         services.AddScoped<IBookingService, BookingService>();
-        services.AddScoped<IPatientPortalRepository, PatientPortalRepository>();
         services.AddScoped<IPatientAppointmentService, PatientAppointmentService>();
         services.AddScoped<IPatientMedicalHistoryService, PatientMedicalHistoryService>();
         return services;

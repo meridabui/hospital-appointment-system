@@ -1,6 +1,6 @@
 using HospitalAppointment.Api.DTOs.MedicalRecords;
 
-namespace HospitalAppointment.Api.DTOs.PatientPortal;
+namespace HospitalAppointment.Api.DTOs.Patients;
 
 public class MedicalHistoryItemDto
 {
