@@ -1,0 +1,238 @@
+@page "/my-appointments"
+@using HospitalAppointment.Client.Models
+@inject PatientPortalApiService PortalApi
+
+<PageTitle>Lịch hẹn của tôi</PageTitle>
+
+<RoleGuard Role="Patient" OnAuthorized="LoadAsync">
+    <div class="container-fluid py-4">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+            <div>
+                <h2 class="fw-bold text-primary mb-1">Lịch hẹn của tôi</h2>
+                <p class="text-muted mb-0">Theo dõi trạng thái và hủy lịch hẹn của bạn.</p>
+            </div>
+            <div class="d-flex gap-2">
+                <NavLink href="book-appointment" class="btn btn-primary">Đặt lịch mới</NavLink>
+                <button class="btn btn-outline-primary" @onclick="LoadAsync" disabled="@_loading">Làm mới</button>
+            </div>
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(_alert))
+        {
+            <div class="alert alert-@(_alertOk ? "success" : "danger") alert-dismissible fade show" role="alert">
+                @_alert
+                <button type="button" class="btn-close" @onclick="() => _alert = null"></button>
+            </div>
+        }
+
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-body">
+                <div class="row align-items-end g-3">
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold">Trạng thái</label>
+                        <select class="form-select" @bind="_statusFilter">
+                            <option value="">Tất cả</option>
+                            @foreach (var s in AppointmentStatusDisplay.All)
+                            {
+                                <option value="@s">@AppointmentStatusDisplay.Label(s)</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-md-8 text-md-end">
+                        <span class="badge bg-light text-dark border px-3 py-2">@Filtered.Count lịch hẹn</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card border-0 shadow-sm">
+            <div class="card-body p-0">
+                @if (_loading)
+                {
+                    <div class="text-center py-5">
+                        <div class="spinner-border text-primary" role="status"></div>
+                        <p class="text-muted mt-2 mb-0">Đang tải lịch hẹn...</p>
+                    </div>
+                }
+                else if (Filtered.Count == 0)
+                {
+                    <div class="text-center py-5 text-muted">
+                        <p class="mb-0">Không có lịch hẹn nào.</p>
+                    </div>
+                }
+                else
+                {
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th class="ps-3">Mã hẹn</th>
+                                    <th>Khoa / Bác sĩ</th>
+                                    <th>Thời gian khám</th>
+                                    <th>Trạng thái</th>
+                                    <th class="text-center pe-3">Thao tác</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var a in Filtered)
+                                {
+                                    <tr>
+                                        <td class="ps-3">
+                                            <span class="badge bg-light text-dark border font-monospace">@a.AppointmentCode</span>
+                                        </td>
+                                        <td>
+                                            <div>@a.DepartmentName</div>
+                                            <div class="small text-muted">BS. @a.DoctorName</div>
+                                        </td>
+                                        <td>
+                                            <div>@ViVn.FormatDate(a.Date)</div>
+                                            <div class="small text-muted">@ViVn.FormatTime(a.StartTime) - @ViVn.FormatTime(a.EndTime)</div>
+                                        </td>
+                                        <td>
+                                            <span class="badge @AppointmentStatusDisplay.Badge(a.Status)">@AppointmentStatusDisplay.Label(a.Status)</span>
+                                            @if (!string.IsNullOrWhiteSpace(a.RejectionReason))
+                                            {
+                                                <div class="small text-muted mt-1">Lý do từ chối: @a.RejectionReason</div>
+                                            }
+                                            @if (!string.IsNullOrWhiteSpace(a.CancellationReason))
+                                            {
+                                                <div class="small text-muted mt-1">Lý do hủy: @a.CancellationReason</div>
+                                            }
+                                        </td>
+                                        <td class="text-center pe-3">
+                                            @if (a.CanCancel)
+                                            {
+                                                <button class="btn btn-sm btn-outline-danger"
+                                                        disabled="@(_processingId.HasValue)"
+                                                        @onclick="() => OpenCancel(a)">
+                                                    Hủy lịch
+                                                </button>
+                                            }
+                                            else if (a.HasMedicalRecord)
+                                            {
+                                                <NavLink href="@($"medical-history/{a.AppointmentId}")" class="btn btn-sm btn-outline-primary">
+                                                    Xem hồ sơ khám
+                                                </NavLink>
+                                            }
+                                            else if (!string.IsNullOrWhiteSpace(a.CancelBlockedReason))
+                                            {
+                                                <span class="small text-muted">@a.CancelBlockedReason</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="text-muted">—</span>
+                                            }
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+
+    @if (_cancelTarget is not null)
+    {
+        <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0, 0, 0, .5);">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content border-0 shadow">
+                    <div class="modal-header bg-danger text-white">
+                        <h5 class="modal-title">Hủy lịch hẹn</h5>
+                        <button type="button" class="btn-close btn-close-white" @onclick="CloseCancel"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p class="mb-2">
+                            Bạn muốn hủy lịch <strong>@_cancelTarget.AppointmentCode</strong>
+                            (@ViVn.FormatDate(_cancelTarget.Date), @ViVn.FormatTime(_cancelTarget.StartTime) - @ViVn.FormatTime(_cancelTarget.EndTime))?
+                        </p>
+                        <textarea class="form-control" rows="3" maxlength="500"
+                                  placeholder="Lý do hủy (không bắt buộc)" @bind="_cancelReason"></textarea>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" @onclick="CloseCancel" disabled="@(_processingId.HasValue)">Quay lại</button>
+                        <button type="button" class="btn btn-danger" disabled="@(_processingId.HasValue)" @onclick="CancelAsync">
+                            Xác nhận hủy
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</RoleGuard>
+
+@code {
+    private readonly List<MyAppointmentModel> _items = new();
+    private string _statusFilter = string.Empty;
+    private bool _loading = true;
+    private int? _processingId;
+    private string? _alert;
+    private bool _alertOk;
+    private MyAppointmentModel? _cancelTarget;
+    private string _cancelReason = string.Empty;
+
+    private List<MyAppointmentModel> Filtered => string.IsNullOrEmpty(_statusFilter)
+        ? _items
+        : _items.Where(a => a.Status == _statusFilter).ToList();
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        try
+        {
+            var result = await PortalApi.GetMyAppointmentsAsync();
+            _items.Clear();
+            if (result.IsSuccess && result.Data is not null)
+                _items.AddRange(result.Data);
+            else
+                ShowAlert(result.ErrorMessage ?? "Không thể tải danh sách lịch hẹn.", false);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private void OpenCancel(MyAppointmentModel appointment)
+    {
+        _cancelTarget = appointment;
+        _cancelReason = string.Empty;
+    }
+
+    private void CloseCancel()
+    {
+        _cancelTarget = null;
+        _cancelReason = string.Empty;
+    }
+
+    private async Task CancelAsync()
+    {
+        if (_cancelTarget is null) return;
+
+        _processingId = _cancelTarget.AppointmentId;
+        var result = await PortalApi.CancelAppointmentAsync(_cancelTarget.AppointmentId, _cancelReason);
+        _processingId = null;
+
+        var code = _cancelTarget.AppointmentCode;
+        CloseCancel();
+
+        if (result.IsSuccess)
+        {
+            ShowAlert(result.Data?.Message ?? $"Đã hủy lịch hẹn {code}.", true);
+        }
+        else
+        {
+            ShowAlert(result.ErrorMessage ?? "Không thể hủy lịch hẹn.", false);
+        }
+
+        // Tải lại để cập nhật trạng thái và CanCancel từ server
+        await LoadAsync();
+    }
+
+    private void ShowAlert(string message, bool ok)
+    {
+        _alert = message;
+        _alertOk = ok;
+    }
+}
