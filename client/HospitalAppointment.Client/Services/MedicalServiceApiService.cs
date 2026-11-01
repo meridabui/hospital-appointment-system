@@ -1,16 +1,16 @@
-﻿
+using System.Net;
+using HospitalAppointment.Client.Core;
 using HospitalAppointment.Client.Models.MedicalService;
-using System.Net.Http.Json;
 
 namespace HospitalAppointment.Client.Services;
 
 public class MedicalServiceApiService
 {
-    private readonly HttpClient _httpClient;
+    private readonly ApiClient _api;
 
-    public MedicalServiceApiService(HttpClient httpClient)
+    public MedicalServiceApiService(ApiClient api)
     {
-        _httpClient = httpClient;
+        _api = api;
     }
 
     // 1. Get all / Search / Filter
@@ -35,8 +35,16 @@ public class MedicalServiceApiService
         if (query.Count > 0)
             url += "?" + string.Join("&", query);
 
-        return await _httpClient.GetFromJsonAsync<List<MedicalServiceDto>>(url)
-            ?? new List<MedicalServiceDto>();
+        var result = await _api.GetAsync<List<MedicalServiceDto>>(url);
+        if (!result.IsSuccess)
+        {
+            throw new HttpRequestException(
+                result.ErrorMessage ?? "Unable to load medical services.",
+                null,
+                (HttpStatusCode)result.StatusCode);
+        }
+
+        return result.Data ?? new List<MedicalServiceDto>();
     }
 
     // 2. Get active services
@@ -48,27 +56,49 @@ public class MedicalServiceApiService
         if (departmentId.HasValue)
             url += $"?departmentId={departmentId.Value}";
 
-        return await _httpClient.GetFromJsonAsync<List<MedicalServiceDto>>(url)
-            ?? new List<MedicalServiceDto>();
+        var result = await _api.GetAsync<List<MedicalServiceDto>>(url);
+        if (!result.IsSuccess)
+        {
+            throw new HttpRequestException(
+                result.ErrorMessage ?? "Unable to load active medical services.",
+                null,
+                (HttpStatusCode)result.StatusCode);
+        }
+
+        return result.Data ?? new List<MedicalServiceDto>();
     }
 
     // 3. Get by ID
     public async Task<MedicalServiceDto?> GetByIdAsync(int id)
     {
-        return await _httpClient.GetFromJsonAsync<MedicalServiceDto>(
-            $"api/MedicalService/{id}");
+        var result = await _api.GetAsync<MedicalServiceDto>($"api/MedicalService/{id}");
+        if (!result.IsSuccess)
+        {
+            throw new HttpRequestException(
+                result.ErrorMessage ?? "Unable to load medical service detail.",
+                null,
+                (HttpStatusCode)result.StatusCode);
+        }
+
+        return result.Data;
     }
 
     // 4. Create
     public async Task<MedicalServiceDto> CreateAsync(
         CreateMedicalServiceDto request)
     {
-        var response = await _httpClient.PostAsJsonAsync(
+        var result = await _api.PostAsync<CreateMedicalServiceDto, MedicalServiceDto>(
             "api/MedicalService", request);
 
-        response.EnsureSuccessStatusCode();
+        if (!result.IsSuccess || result.Data == null)
+        {
+            throw new HttpRequestException(
+                result.ErrorMessage ?? "Unable to create medical service.",
+                null,
+                (HttpStatusCode)result.StatusCode);
+        }
 
-        return (await response.Content.ReadFromJsonAsync<MedicalServiceDto>())!;
+        return result.Data;
     }
 
     // 5. Update
@@ -76,12 +106,18 @@ public class MedicalServiceApiService
         int id,
         UpdateMedicalServiceDto request)
     {
-        var response = await _httpClient.PutAsJsonAsync(
+        var result = await _api.PutAsync<UpdateMedicalServiceDto, MedicalServiceDto>(
             $"api/MedicalService/{id}", request);
 
-        response.EnsureSuccessStatusCode();
+        if (!result.IsSuccess || result.Data == null)
+        {
+            throw new HttpRequestException(
+                result.ErrorMessage ?? "Unable to update medical service.",
+                null,
+                (HttpStatusCode)result.StatusCode);
+        }
 
-        return (await response.Content.ReadFromJsonAsync<MedicalServiceDto>())!;
+        return result.Data;
     }
 
     // 6. Activate / Deactivate
@@ -94,11 +130,17 @@ public class MedicalServiceApiService
             IsActive = isActive
         };
 
-        var response = await _httpClient.PatchAsJsonAsync(
+        var result = await _api.PatchAsync<UpdateMedicalServiceStatusDto, MedicalServiceDto>(
             $"api/MedicalService/{id}/status", request);
 
-        response.EnsureSuccessStatusCode();
+        if (!result.IsSuccess || result.Data == null)
+        {
+            throw new HttpRequestException(
+                result.ErrorMessage ?? "Unable to update medical service status.",
+                null,
+                (HttpStatusCode)result.StatusCode);
+        }
 
-        return (await response.Content.ReadFromJsonAsync<MedicalServiceDto>())!;
+        return result.Data;
     }
 }

@@ -1,16 +1,17 @@
-﻿
+
 @page "/manager/departments"
+@using HospitalAppointment.Client.Components
 
 @using HospitalAppointment.Client.Models.Department
 @using HospitalAppointment.Client.Services
 @using Microsoft.AspNetCore.Components.Forms
 
 @inject DepartmentApiService DepartmentService
-@inject AuthApiService AuthService
 @inject NavigationManager Navigation
 
 <PageTitle>Department Management</PageTitle>
 
+<RoleGuard Role="MedicalServiceManager" OnAuthorized="LoadDepartments">
 <div class="department-page">
 
     <div class="page-header">
@@ -114,7 +115,7 @@
             </select>
 
             <button class="secondary-button"
-                    @onclick="LoadDepartments"
+                    @onclick="RefreshDepartments"
                     disabled="@isLoading">
                 Refresh
             </button>
@@ -140,7 +141,7 @@
                 <table class="department-table">
                     <thead>
                         <tr>
-                            <th>ID</th>
+                            <th>STT</th>
                             <th>Department Code</th>
                             <th>Department Name</th>
                             <th>Description</th>
@@ -150,10 +151,12 @@
                     </thead>
 
                     <tbody>
-                        @foreach (var item in departments)
+                        @for (int i = 0; i < departments.Count; i++)
                         {
+                            var item = departments[i];
+                            var index = i + 1;
                             <tr @key="item.DepartmentId">
-                                <td>@item.DepartmentId</td>
+                                <td>@index</td>
 
                                 <td>
                                     <strong>@item.DepartmentCode</strong>
@@ -206,6 +209,7 @@
     </div>
 
 </div>
+</RoleGuard>
 
 <style>
     .department-page {
@@ -415,9 +419,12 @@
     }
 
     .description-cell {
-        max-width: 230px;
-        overflow: hidden;
-        text-overflow: ellipsis;
+        max-width: 380px;
+        white-space: normal;
+        word-break: break-word;
+        overflow: visible;
+        text-overflow: clip;
+        line-height: 1.5;
     }
 
     .status {
@@ -532,20 +539,7 @@
 
     private bool showForm;
 
-    protected override async Task OnInitializedAsync()
-    {
-        if (!AuthService.IsLoggedIn ||
-            !string.Equals(
-                AuthService.CurrentUser?.Role,
-                "MedicalServiceManager",
-                StringComparison.OrdinalIgnoreCase))
-        {
-            Navigation.NavigateTo("/login", true);
-            return;
-        }
-
-        await LoadDepartments();
-    }
+    // RoleGuard automatically invokes LoadDepartments() when authorized
 
     private async Task LoadDepartments()
     {
@@ -564,9 +558,14 @@
                 _ => null
             };
 
-            departments = await DepartmentService.GetAllAsync(
+            var list = await DepartmentService.GetAllAsync(
                 searchTerm,
                 isActive);
+
+            departments = list
+                .OrderByDescending(d => d.CreatedAt)
+                .ThenByDescending(d => d.DepartmentId)
+                .ToList();
         }
         catch (HttpRequestException ex)
         {
@@ -574,7 +573,6 @@
 
             if (ex.StatusCode == System.Net.HttpStatusCode.Unauthorized)
             {
-                AuthService.Logout();
                 Navigation.NavigateTo("/login", true);
             }
         }
@@ -670,14 +668,7 @@
 
             await LoadDepartments();
         }
-        catch (HttpRequestException ex)
-        {
-            formError = ex.Message;
-        }
-        catch
-        {
-            formError = "Unable to save department.";
-        }
+        catch (HttpRequestException ex) { formError = FormatErrorMessage(ex.Message); } catch (Exception ex) { formError = FormatErrorMessage(ex.Message); }
         finally
         {
             isSaving = false;
@@ -717,5 +708,31 @@
         {
             updatingId = null;
         }
+    }
+
+    private async Task RefreshDepartments()
+    {
+        searchTerm = string.Empty;
+        statusFilter = "all";
+        errorMessage = string.Empty;
+        successMessage = string.Empty;
+        await LoadDepartments();
+    }
+
+    private static string FormatErrorMessage(string rawMessage)
+    {
+        if (string.IsNullOrWhiteSpace(rawMessage))
+            return "An error occurred. Please try again.";
+
+        if (rawMessage.Contains("code already exists", StringComparison.OrdinalIgnoreCase))
+            return "Department code already exists. Please choose a different code.";
+
+        if (rawMessage.Contains("name already exists", StringComparison.OrdinalIgnoreCase))
+            return "Department name already exists. Please choose a different name.";
+
+        if (rawMessage.Contains("not found", StringComparison.OrdinalIgnoreCase))
+            return "Department was not found.";
+
+        return rawMessage;
     }
 }

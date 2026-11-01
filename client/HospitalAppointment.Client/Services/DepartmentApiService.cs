@@ -1,16 +1,16 @@
-﻿
+using System.Net;
+using HospitalAppointment.Client.Core;
 using HospitalAppointment.Client.Models.Department;
-using System.Net.Http.Json;
 
 namespace HospitalAppointment.Client.Services;
 
 public class DepartmentApiService
 {
-    private readonly HttpClient _httpClient;
+    private readonly ApiClient _api;
 
-    public DepartmentApiService(HttpClient httpClient)
+    public DepartmentApiService(ApiClient api)
     {
-        _httpClient = httpClient;
+        _api = api;
     }
 
     // 1. Get all / Search / Filter
@@ -31,34 +31,64 @@ public class DepartmentApiService
         if (query.Count > 0)
             url += "?" + string.Join("&", query);
 
-        return await _httpClient.GetFromJsonAsync<List<DepartmentDto>>(url)
-            ?? new List<DepartmentDto>();
+        var result = await _api.GetAsync<List<DepartmentDto>>(url);
+        if (!result.IsSuccess)
+        {
+            throw new HttpRequestException(
+                result.ErrorMessage ?? "Unable to load departments.",
+                null,
+                (HttpStatusCode)result.StatusCode);
+        }
+
+        return result.Data ?? new List<DepartmentDto>();
     }
 
     // 2. Get active departments
     public async Task<List<DepartmentDto>> GetActiveAsync()
     {
-        return await _httpClient.GetFromJsonAsync<List<DepartmentDto>>(
-            "api/Department/active") ?? new List<DepartmentDto>();
+        var result = await _api.GetAsync<List<DepartmentDto>>("api/Department/active");
+        if (!result.IsSuccess)
+        {
+            throw new HttpRequestException(
+                result.ErrorMessage ?? "Unable to load active departments.",
+                null,
+                (HttpStatusCode)result.StatusCode);
+        }
+
+        return result.Data ?? new List<DepartmentDto>();
     }
 
     // 3. Get by ID
     public async Task<DepartmentDto?> GetByIdAsync(int id)
     {
-        return await _httpClient.GetFromJsonAsync<DepartmentDto>(
-            $"api/Department/{id}");
+        var result = await _api.GetAsync<DepartmentDto>($"api/Department/{id}");
+        if (!result.IsSuccess)
+        {
+            throw new HttpRequestException(
+                result.ErrorMessage ?? "Unable to load department detail.",
+                null,
+                (HttpStatusCode)result.StatusCode);
+        }
+
+        return result.Data;
     }
 
     // 4. Create
     public async Task<DepartmentDto> CreateAsync(
         CreateDepartmentDto request)
     {
-        var response = await _httpClient.PostAsJsonAsync(
+        var result = await _api.PostAsync<CreateDepartmentDto, DepartmentDto>(
             "api/Department", request);
 
-        response.EnsureSuccessStatusCode();
+        if (!result.IsSuccess || result.Data == null)
+        {
+            throw new HttpRequestException(
+                result.ErrorMessage ?? "Unable to create department.",
+                null,
+                (HttpStatusCode)result.StatusCode);
+        }
 
-        return (await response.Content.ReadFromJsonAsync<DepartmentDto>())!;
+        return result.Data;
     }
 
     // 5. Update
@@ -66,12 +96,18 @@ public class DepartmentApiService
         int id,
         UpdateDepartmentDto request)
     {
-        var response = await _httpClient.PutAsJsonAsync(
+        var result = await _api.PutAsync<UpdateDepartmentDto, DepartmentDto>(
             $"api/Department/{id}", request);
 
-        response.EnsureSuccessStatusCode();
+        if (!result.IsSuccess || result.Data == null)
+        {
+            throw new HttpRequestException(
+                result.ErrorMessage ?? "Unable to update department.",
+                null,
+                (HttpStatusCode)result.StatusCode);
+        }
 
-        return (await response.Content.ReadFromJsonAsync<DepartmentDto>())!;
+        return result.Data;
     }
 
     // 6. Activate / Deactivate
@@ -84,11 +120,17 @@ public class DepartmentApiService
             IsActive = isActive
         };
 
-        var response = await _httpClient.PatchAsJsonAsync(
+        var result = await _api.PatchAsync<UpdateDepartmentStatusDto, DepartmentDto>(
             $"api/Department/{id}/status", request);
 
-        response.EnsureSuccessStatusCode();
+        if (!result.IsSuccess || result.Data == null)
+        {
+            throw new HttpRequestException(
+                result.ErrorMessage ?? "Unable to update department status.",
+                null,
+                (HttpStatusCode)result.StatusCode);
+        }
 
-        return (await response.Content.ReadFromJsonAsync<DepartmentDto>())!;
+        return result.Data;
     }
 }

@@ -1,16 +1,16 @@
-﻿
+using System.Net;
+using HospitalAppointment.Client.Core;
 using HospitalAppointment.Client.Models.Schedule;
-using System.Net.Http.Json;
 
 namespace HospitalAppointment.Client.Services;
 
 public class ScheduleApiService
 {
-    private readonly HttpClient _httpClient;
+    private readonly ApiClient _api;
 
-    public ScheduleApiService(HttpClient httpClient)
+    public ScheduleApiService(ApiClient api)
     {
-        _httpClient = httpClient;
+        _api = api;
     }
 
     // 1. GET ALL / FILTER SCHEDULES
@@ -39,66 +39,103 @@ public class ScheduleApiService
         if (query.Count > 0)
             url += "?" + string.Join("&", query);
 
-        return await _httpClient.GetFromJsonAsync<List<DoctorScheduleDto>>(url)
-            ?? new List<DoctorScheduleDto>();
+        var result = await _api.GetAsync<List<DoctorScheduleDto>>(url);
+        if (!result.IsSuccess)
+        {
+            throw new HttpRequestException(
+                result.ErrorMessage ?? "Unable to load schedules.",
+                null,
+                (HttpStatusCode)result.StatusCode);
+        }
+
+        return result.Data ?? new List<DoctorScheduleDto>();
     }
 
     // 2. GET BY ID
     public async Task<DoctorScheduleDto?> GetByIdAsync(int id)
     {
-        return await _httpClient.GetFromJsonAsync<DoctorScheduleDto>(
-            $"api/Schedule/{id}");
+        var result = await _api.GetAsync<DoctorScheduleDto>($"api/Schedule/{id}");
+        if (!result.IsSuccess)
+        {
+            throw new HttpRequestException(
+                result.ErrorMessage ?? "Unable to load schedule detail.",
+                null,
+                (HttpStatusCode)result.StatusCode);
+        }
+
+        return result.Data;
     }
 
     // 3. GET DOCTORS
     public async Task<List<DoctorOptionDto>> GetDoctorsAsync()
     {
-        return await _httpClient.GetFromJsonAsync<List<DoctorOptionDto>>(
-            "api/Schedule/doctors")
-            ?? new List<DoctorOptionDto>();
+        var result = await _api.GetAsync<List<DoctorOptionDto>>("api/Schedule/doctors");
+        if (!result.IsSuccess)
+        {
+            throw new HttpRequestException(
+                result.ErrorMessage ?? "Unable to load doctors.",
+                null,
+                (HttpStatusCode)result.StatusCode);
+        }
+
+        return result.Data ?? new List<DoctorOptionDto>();
     }
 
     // 4. GET DEPARTMENTS BY DOCTOR
-
-    public async Task<List<DepartmentOptionDto>>
-        GetDepartmentsByDoctorAsync(int doctorId)
+    public async Task<List<DepartmentOptionDto>> GetDepartmentsByDoctorAsync(int doctorId)
     {
-        return await _httpClient.GetFromJsonAsync<List<DepartmentOptionDto>>(
-            $"api/Schedule/doctors/{doctorId}/departments")
-            ?? new List<DepartmentOptionDto>();
+        var result = await _api.GetAsync<List<DepartmentOptionDto>>(
+            $"api/Schedule/doctors/{doctorId}/departments");
+
+        if (!result.IsSuccess)
+        {
+            throw new HttpRequestException(
+                result.ErrorMessage ?? "Unable to load doctor departments.",
+                null,
+                (HttpStatusCode)result.StatusCode);
+        }
+
+        return result.Data ?? new List<DepartmentOptionDto>();
     }
 
-    // 5. CREATE SCHEDULE
-
+    // 5. CREATE SCHEDULE (Generates slots)
     public async Task<List<DoctorScheduleDto>> CreateAsync(
         CreateScheduleDto request)
     {
-        var response = await _httpClient.PostAsJsonAsync(
+        var result = await _api.PostAsync<CreateScheduleDto, List<DoctorScheduleDto>>(
             "api/Schedule", request);
 
-        response.EnsureSuccessStatusCode();
+        if (!result.IsSuccess || result.Data == null)
+        {
+            throw new HttpRequestException(
+                result.ErrorMessage ?? "Unable to create schedule.",
+                null,
+                (HttpStatusCode)result.StatusCode);
+        }
 
-        return await response.Content.ReadFromJsonAsync<List<DoctorScheduleDto>>()
-            ?? new List<DoctorScheduleDto>();
+        return result.Data;
     }
 
     // 6. UPDATE SCHEDULE
-
     public async Task<DoctorScheduleDto> UpdateAsync(
         int id,
         UpdateScheduleDto request)
     {
-        var response = await _httpClient.PutAsJsonAsync(
+        var result = await _api.PutAsync<UpdateScheduleDto, DoctorScheduleDto>(
             $"api/Schedule/{id}", request);
 
-        response.EnsureSuccessStatusCode();
+        if (!result.IsSuccess || result.Data == null)
+        {
+            throw new HttpRequestException(
+                result.ErrorMessage ?? "Unable to update schedule.",
+                null,
+                (HttpStatusCode)result.StatusCode);
+        }
 
-        return (await response.Content.ReadFromJsonAsync<DoctorScheduleDto>())!;
+        return result.Data;
     }
 
-    
     // 7. ACTIVATE / DEACTIVATE
-   
     public async Task<DoctorScheduleDto> UpdateStatusAsync(
         int id,
         bool isActive)
@@ -108,11 +145,17 @@ public class ScheduleApiService
             IsActive = isActive
         };
 
-        var response = await _httpClient.PatchAsJsonAsync(
+        var result = await _api.PatchAsync<UpdateScheduleStatusDto, DoctorScheduleDto>(
             $"api/Schedule/{id}/status", request);
 
-        response.EnsureSuccessStatusCode();
+        if (!result.IsSuccess || result.Data == null)
+        {
+            throw new HttpRequestException(
+                result.ErrorMessage ?? "Unable to update schedule status.",
+                null,
+                (HttpStatusCode)result.StatusCode);
+        }
 
-        return (await response.Content.ReadFromJsonAsync<DoctorScheduleDto>())!;
+        return result.Data;
     }
 }

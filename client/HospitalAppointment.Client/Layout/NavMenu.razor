@@ -62,6 +62,24 @@
 
         </div>
     }
+    else if (Session.IsInRole("SchedulingManager"))
+    {
+        <!-- SCHEDULING MANAGER MENU -->
+        <div class="menu-section">
+
+            <span class="menu-label">SCHEDULING</span>
+
+            <NavLink href="/manager/schedules"
+                     Match="NavLinkMatch.All"
+                     class="menu-link">
+
+                <span class="menu-icon">📅</span>
+                <span>Doctor Schedules</span>
+
+            </NavLink>
+
+        </div>
+    }
     else if (Session.IsInRole("Receptionist"))
     {
         <!-- RECEPTIONIST MENU -->
@@ -348,6 +366,7 @@
     private string RoleLabel => Session.Current?.Role switch
     {
         "MedicalServiceManager" => "Medical Service Manager",
+        "SchedulingManager" => "Scheduling Manager",
         var role => role ?? string.Empty
     };
 

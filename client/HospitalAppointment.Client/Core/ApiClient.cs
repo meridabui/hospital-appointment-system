@@ -39,6 +39,12 @@ public class ApiClient
     public Task<ApiResult<TResponse>> PutAsync<TRequest, TResponse>(string url, TRequest body)
         => SendAsync<TResponse>(HttpMethod.Put, url, JsonContent.Create(body, options: JsonOptions));
 
+    public Task<ApiResult<TResponse>> PatchAsync<TRequest, TResponse>(string url, TRequest body)
+        => SendAsync<TResponse>(HttpMethod.Patch, url, JsonContent.Create(body, options: JsonOptions));
+
+    public Task<ApiResult<T>> PatchAsync<T>(string url)
+        => SendAsync<T>(HttpMethod.Patch, url, null);
+
     public Task<ApiResult<T>> PostAsync<T>(string url)
         => SendAsync<T>(HttpMethod.Post, url, null);
 
@@ -87,10 +93,11 @@ public class ApiClient
         var status = (int)response.StatusCode;
         var errors = new List<string>();
         string? detail = null;
+        string? text = null;
 
         try
         {
-            var text = await response.Content.ReadAsStringAsync();
+            text = await response.Content.ReadAsStringAsync();
             using var doc = JsonDocument.Parse(text);
             var root = doc.RootElement;
 
@@ -100,22 +107,45 @@ public class ApiClient
                 if (root.TryGetProperty("errors", out var errs) && errs.ValueKind == JsonValueKind.Object)
                 {
                     foreach (var prop in errs.EnumerateObject())
-                        foreach (var msg in prop.Value.EnumerateArray())
-                            if (msg.GetString() is { Length: > 0 } s) errors.Add(s);
+                    {
+                        if (prop.Value.ValueKind == JsonValueKind.Array)
+                        {
+                            foreach (var msg in prop.Value.EnumerateArray())
+                                if (msg.GetString() is { Length: > 0 } s) errors.Add(s);
+                        }
+                        else if (prop.Value.ValueKind == JsonValueKind.String)
+                        {
+                            if (prop.Value.GetString() is { Length: > 0 } s) errors.Add(s);
+                        }
+                    }
                 }
 
                 // Lỗi nghiệp vụ từ middleware: { "detail": "..." }
                 if (root.TryGetProperty("detail", out var d) && d.ValueKind == JsonValueKind.String)
                     detail = d.GetString();
+
+                // Lỗi nghiệp vụ từ controller trả về: { "message": "..." }
+                if (root.TryGetProperty("message", out var m) && m.ValueKind == JsonValueKind.String)
+                    detail ??= m.GetString();
+
+                // Lỗi ProblemDetails: { "title": "..." }
+                if (root.TryGetProperty("title", out var t) && t.ValueKind == JsonValueKind.String)
+                    detail ??= t.GetString();
+            }
+            else if (root.ValueKind == JsonValueKind.String)
+            {
+                detail = root.GetString();
             }
         }
         catch (JsonException)
         {
-            // Body rỗng hoặc không phải JSON (ví dụ 403 không có nội dung)
+            // Body có thể là plain text string
+            if (!string.IsNullOrWhiteSpace(text))
+                detail = text;
         }
 
         var message = detail
-                      ?? (errors.Count > 0 ? errors[0] : DefaultMessage(status));
+                      ?? (errors.Count > 0 ? string.Join(". ", errors) : DefaultMessage(status));
 
         if (errors.Count == 0) errors.Add(message);
 
