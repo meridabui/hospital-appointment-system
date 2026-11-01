@@ -57,6 +57,36 @@ public class Appointment
         CheckedInAt = checkedInAtUtc;
     }
 
+    public void Confirm(int receptionistUserId, DateTime confirmedAtUtc)
+    {
+        if (Status != AppointmentStatus.Pending)
+        {
+            throw new InvalidOperationException("Only a pending appointment can be confirmed.");
+        }
+
+        Status = AppointmentStatus.Confirmed;
+        ConfirmedBy = receptionistUserId;
+        ConfirmedAt = confirmedAtUtc;
+        RejectionReason = null;
+    }
+
+    public void Reject(string reason)
+    {
+        if (Status != AppointmentStatus.Pending)
+        {
+            throw new InvalidOperationException("Only a pending appointment can be rejected.");
+        }
+
+        if (string.IsNullOrWhiteSpace(reason))
+        {
+            throw new ArgumentException("A rejection reason is required.", nameof(reason));
+        }
+
+        Status = AppointmentStatus.Rejected;
+        RejectionReason = reason.Trim();
+        IsActiveBooking = false;
+    }
+
     public void MarkNoShow(int receptionistUserId, DateTime markedAtUtc, string reason)
     {
         if (Status != AppointmentStatus.Confirmed)

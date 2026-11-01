@@ -9,6 +9,8 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using System.Security.Claims;
 using System.Text;
+using System.Text.Json.Serialization;
+using HospitalAppointment.Api.Models.Enums;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -19,7 +21,9 @@ builder.Services.AddDbContext<HospitalAppointmentDbContext>(
         builder.Configuration.GetConnectionString("DefaultConnection")));
 
 // 2. Controllers
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+        options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 
 // 3. Swagger + JWT
 //builder.Services.AddEndpointsApiExplorer();
@@ -56,7 +60,16 @@ builder.Services.AddControllers();
 
 // 3. Swagger (phần nút Authorize nằm trong AddApplicationServices)
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(options =>
+{
+    options.MapType<AppointmentStatus>(() => new OpenApiSchema
+    {
+        Type = "string",
+        Enum = Enum.GetNames<AppointmentStatus>()
+            .Select(name => (Microsoft.OpenApi.Any.IOpenApiAny)new Microsoft.OpenApi.Any.OpenApiString(name))
+            .ToList()
+    });
+});
 
 // 4. Repositories
 builder.Services.AddScoped<IAuthRepository, AuthRepository>();
@@ -70,6 +83,9 @@ builder.Services.AddScoped<IDepartmentRepository, DepartmentRepository>();
 builder.Services.AddScoped<IDepartmentService, DepartmentService>();
 // AppointmentRepository hiện thực 2 interface cùng tên ở 2 namespace -> đăng ký cả hai
 builder.Services.AddScoped<IAppointmentReceptionService, AppointmentReceptionService>();
+builder.Services.AddScoped<IReceptionService, ReceptionService>();
+builder.Services.AddSingleton<IHospitalClock, SystemHospitalClock>();
+builder.Services.AddScoped<IAppointmentConfirmationService, AppointmentConfirmationService>();
 builder.Services.AddScoped<IMedicalRecordRepository, MedicalRecordRepository>();
 builder.Services.AddScoped<IMedicalRecordService, MedicalRecordService>();
 builder.Services.AddScoped<IAppointmentRepository, AppointmentRepository>();
