@@ -17,6 +17,7 @@ builder.Services.AddScoped<IAppointmentConfirmationApiClient, AppointmentConfirm
 // Register Services
 builder.Services.AddScoped<AuthApiService>();
 builder.Services.AddScoped<NurseApiService>();
+builder.Services.AddScoped<PatientPortalApiService>();
 builder.Services.AddScoped<ExaminationApi>();
 builder.Services.AddScoped<MedicalRecordApi>();
 
