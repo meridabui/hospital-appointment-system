@@ -31,6 +31,10 @@ public interface IAppointmentRepository
     // Chung
     Task UpdateAsync(Appointment appointment);
     Task<bool> SaveChangesAsync();
+
+    // lịch hẹn của tôi, hủy lịch
+    Task<List<Appointment>> GetByPatientAsync(int patientId);
+    Task<Appointment?> GetOwnedForUpdateAsync(int appointmentId, int patientId);
 }
 
 public class AppointmentRepository : IAppointmentRepository
@@ -157,4 +161,22 @@ public class AppointmentRepository : IAppointmentRepository
             .Include(a => a.Doctor).ThenInclude(d => d.Staff).ThenInclude(s => s.User)
             .Include(a => a.Department)
             .FirstOrDefaultAsync(a => a.AppointmentId == id, cancellationToken);
+
+    public Task<List<Appointment>> GetByPatientAsync(int patientId)
+        => _db.Appointments.AsNoTracking()
+            .Include(a => a.Department)
+            .Include(a => a.ScheduleSlot)
+            .Include(a => a.Doctor).ThenInclude(d => d.Staff).ThenInclude(s => s.User)
+            .Include(a => a.MedicalRecord)
+            .Where(a => a.PatientId == patientId)
+            .OrderByDescending(a => a.ScheduleSlot.SlotDate)
+            .ThenByDescending(a => a.ScheduleSlot.StartTime)
+            .ToListAsync();
+
+    // Có tracking vì sau đó entity bị sửa (hủy lịch) rồi lưu
+    public Task<Appointment?> GetOwnedForUpdateAsync(int appointmentId, int patientId)
+        => _db.Appointments
+            .Include(a => a.ScheduleSlot)
+            .Include(a => a.Department)
+            .FirstOrDefaultAsync(a => a.AppointmentId == appointmentId && a.PatientId == patientId);
 }

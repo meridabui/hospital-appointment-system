@@ -1,0 +1,259 @@
+@page "/medical-history"
+@page "/medical-history/{AppointmentId:int}"
+@using HospitalAppointment.Client.Models
+@inject PatientPortalApiService PortalApi
+
+<PageTitle>Lịch sử khám bệnh</PageTitle>
+
+<RoleGuard Role="Patient" OnAuthorized="InitAsync">
+    <div class="container-fluid py-4">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+            <div>
+                <h2 class="fw-bold text-primary mb-1">Lịch sử khám bệnh</h2>
+                <p class="text-muted mb-0">Các lần khám đã có hồ sơ hoàn tất.</p>
+            </div>
+            <button class="btn btn-outline-primary" @onclick="LoadAsync" disabled="@_loading">Làm mới</button>
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(_error))
+        {
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                @_error
+                <button type="button" class="btn-close" @onclick="() => _error = null"></button>
+            </div>
+        }
+
+        <div class="card border-0 shadow-sm">
+            <div class="card-body p-0">
+                @if (_loading)
+                {
+                    <div class="text-center py-5">
+                        <div class="spinner-border text-primary" role="status"></div>
+                        <p class="text-muted mt-2 mb-0">Đang tải lịch sử khám...</p>
+                    </div>
+                }
+                else if (_items.Count == 0)
+                {
+                    <div class="text-center py-5 text-muted">
+                        <p class="mb-0">Bạn chưa có hồ sơ khám nào.</p>
+                    </div>
+                }
+                else
+                {
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th class="ps-3">Ngày khám</th>
+                                    <th>Mã hẹn</th>
+                                    <th>Khoa / Bác sĩ</th>
+                                    <th>Chẩn đoán</th>
+                                    <th class="text-center pe-3">Thao tác</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var r in _items)
+                                {
+                                    <tr>
+                                        <td class="ps-3">
+                                            <div>@ViVn.FormatDate(r.Date)</div>
+                                            <div class="small text-muted">@ViVn.FormatTime(r.StartTime) - @ViVn.FormatTime(r.EndTime)</div>
+                                        </td>
+                                        <td><span class="badge bg-light text-dark border font-monospace">@r.AppointmentCode</span></td>
+                                        <td>
+                                            <div>@r.DepartmentName</div>
+                                            <div class="small text-muted">BS. @r.DoctorName</div>
+                                        </td>
+                                        <td class="small">@(string.IsNullOrWhiteSpace(r.Diagnosis) ? "—" : r.Diagnosis)</td>
+                                        <td class="text-center pe-3">
+                                            <button class="btn btn-sm btn-outline-primary" @onclick="() => OpenDetailAsync(r.AppointmentId)">
+                                                Xem chi tiết
+                                            </button>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+
+    @if (_showDetail)
+    {
+        <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0, 0, 0, .5);">
+            <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+                <div class="modal-content border-0 shadow">
+                    <div class="modal-header bg-primary text-white">
+                        <h5 class="modal-title">Chi tiết hồ sơ khám@(_detail is null ? "" : $" - {_detail.AppointmentCode}")</h5>
+                        <button type="button" class="btn-close btn-close-white" @onclick="CloseDetail"></button>
+                    </div>
+                    <div class="modal-body">
+                        @if (_detailLoading)
+                        {
+                            <div class="text-center py-4">
+                                <div class="spinner-border text-primary" role="status"></div>
+                            </div>
+                        }
+                        else if (_detail is null)
+                        {
+                            <div class="alert alert-danger mb-0">@(_detailError ?? "Không tải được hồ sơ khám.")</div>
+                        }
+                        else
+                        {
+                            <dl class="row mb-3">
+                                <dt class="col-sm-3">Thời gian</dt>
+                                <dd class="col-sm-9">@ViVn.FormatDate(_detail.Date), @ViVn.FormatTime(_detail.StartTime) - @ViVn.FormatTime(_detail.EndTime)</dd>
+                                <dt class="col-sm-3">Khoa</dt>
+                                <dd class="col-sm-9">@_detail.DepartmentName</dd>
+                                <dt class="col-sm-3">Bác sĩ</dt>
+                                <dd class="col-sm-9">BS. @_detail.DoctorName@(string.IsNullOrWhiteSpace(_detail.Specialty) ? "" : $" ({_detail.Specialty})")</dd>
+                                <dt class="col-sm-3">Chẩn đoán</dt>
+                                <dd class="col-sm-9">@Show(_detail.Diagnosis)</dd>
+                                <dt class="col-sm-3">Kết quả</dt>
+                                <dd class="col-sm-9" style="white-space: pre-line;">@Show(_detail.Result)</dd>
+                                <dt class="col-sm-3">Hướng điều trị</dt>
+                                <dd class="col-sm-9" style="white-space: pre-line;">@Show(_detail.TreatmentNotes)</dd>
+                            </dl>
+
+                            <h6 class="fw-bold">Đơn thuốc</h6>
+                            @if (_detail.Prescription is null || _detail.Prescription.Items.Count == 0)
+                            {
+                                <p class="text-muted">Không có đơn thuốc.</p>
+                            }
+                            else
+                            {
+                                <div class="table-responsive mb-2">
+                                    <table class="table table-sm table-bordered align-middle">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th>Thuốc</th>
+                                                <th>Liều dùng</th>
+                                                <th>Đường dùng</th>
+                                                <th>Tần suất</th>
+                                                <th>Thời gian</th>
+                                                <th>SL</th>
+                                                <th>Hướng dẫn</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @foreach (var i in _detail.Prescription.Items)
+                                            {
+                                                <tr>
+                                                    <td class="fw-semibold">@i.MedicationName</td>
+                                                    <td>@Show(i.Dosage)</td>
+                                                    <td>@Show(i.Route)</td>
+                                                    <td>@Show(i.Frequency)</td>
+                                                    <td>@Show(i.Duration)</td>
+                                                    <td>@(i.Quantity?.ToString("0.##") ?? "—")</td>
+                                                    <td>@Show(i.Instructions)</td>
+                                                </tr>
+                                            }
+                                        </tbody>
+                                    </table>
+                                </div>
+                                @if (!string.IsNullOrWhiteSpace(_detail.Prescription.Notes))
+                                {
+                                    <p class="small text-muted">Ghi chú đơn thuốc: @_detail.Prescription.Notes</p>
+                                }
+                            }
+
+                            <h6 class="fw-bold mt-3">Dịch vụ được chỉ định</h6>
+                            @if (_detail.OrderedServices.Count == 0)
+                            {
+                                <p class="text-muted mb-0">Không có dịch vụ nào được chỉ định.</p>
+                            }
+                            else
+                            {
+                                <ul class="list-group">
+                                    @foreach (var s in _detail.OrderedServices)
+                                    {
+                                        <li class="list-group-item d-flex justify-content-between align-items-start">
+                                            <div>
+                                                <div class="fw-semibold">@s.ServiceName</div>
+                                                @if (!string.IsNullOrWhiteSpace(s.Notes))
+                                                {
+                                                    <div class="small text-muted">@s.Notes</div>
+                                                }
+                                            </div>
+                                            <span class="badge bg-light text-dark border">@s.ServiceStatus</span>
+                                        </li>
+                                    }
+                                </ul>
+                            }
+                        }
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" @onclick="CloseDetail">Đóng</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</RoleGuard>
+
+@code {
+    // Có giá trị khi vào từ "Xem hồ sơ khám" ở trang Lịch hẹn của tôi
+    [Parameter] public int? AppointmentId { get; set; }
+
+    private readonly List<MedicalHistoryItemModel> _items = new();
+    private bool _loading = true;
+    private string? _error;
+
+    private bool _showDetail;
+    private bool _detailLoading;
+    private string? _detailError;
+    private MedicalHistoryDetailModel? _detail;
+
+    private async Task InitAsync()
+    {
+        await LoadAsync();
+        if (AppointmentId.HasValue)
+            await OpenDetailAsync(AppointmentId.Value);
+    }
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        try
+        {
+            var result = await PortalApi.GetMyMedicalHistoryAsync();
+            _items.Clear();
+            if (result.IsSuccess && result.Data is not null)
+                _items.AddRange(result.Data);
+            else
+                _error = result.ErrorMessage ?? "Không thể tải lịch sử khám bệnh.";
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task OpenDetailAsync(int appointmentId)
+    {
+        _showDetail = true;
+        _detailLoading = true;
+        _detail = null;
+        _detailError = null;
+        StateHasChanged();
+
+        var result = await PortalApi.GetMyMedicalHistoryDetailAsync(appointmentId);
+        if (result.IsSuccess && result.Data is not null)
+            _detail = result.Data;
+        else
+            _detailError = result.ErrorMessage;
+
+        _detailLoading = false;
+    }
+
+    private void CloseDetail()
+    {
+        _showDetail = false;
+        _detail = null;
+        _detailError = null;
+    }
+
+    private static string Show(string? value) => string.IsNullOrWhiteSpace(value) ? "—" : value;
+}
