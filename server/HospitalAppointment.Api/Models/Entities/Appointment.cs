@@ -145,4 +145,20 @@ public class Appointment
         CompletedAt = DateTime.UtcNow;
         CompletedBy = userId;
     }
+    /// <summary>
+    /// Hủy lịch hẹn (Pending/Confirmed -> Cancelled) và nhả slot (IsActiveBooking = false).
+    /// </summary>
+    public void Cancel(int userId, string? reason, DateTime cancelledAtUtc)
+    {
+        if (Status != AppointmentStatus.Pending && Status != AppointmentStatus.Confirmed)
+        {
+            throw new InvalidOperationException($"Không thể hủy lịch hẹn đang ở trạng thái {Status}.");
+        }
+
+        Status = AppointmentStatus.Cancelled;
+        CancellationReason = string.IsNullOrWhiteSpace(reason) ? null : reason.Trim();
+        CancelledAt = cancelledAtUtc;
+        CancelledBy = userId;
+        IsActiveBooking = false;
+    }
 }
