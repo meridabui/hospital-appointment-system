@@ -25,7 +25,7 @@ public interface IAppointmentRepository
     Task<Appointment?> GetForReceptionUpdateAsync(int id, CancellationToken cancellationToken);
 
     // Khám bệnh
-    Task<List<Appointment>> GetByDoctorStatusesAndDateAsync(int doctorId, AppointmentStatus[] statuses, DateOnly slotDate);
+    Task<List<Appointment>> GetByDoctorAndStatusesAsync(int doctorId, AppointmentStatus[] statuses);
     void AddAuditLog(AuditLog log);
 
     // Chung
@@ -98,14 +98,13 @@ public class AppointmentRepository : IAppointmentRepository
         => GetForReceptionUpdateAsync(id);
 
     // ---------- Khám bệnh ----------
-    public Task<List<Appointment>> GetByDoctorStatusesAndDateAsync(int doctorId, AppointmentStatus[] statuses, DateOnly slotDate)
+    public Task<List<Appointment>> GetByDoctorAndStatusesAsync(int doctorId, AppointmentStatus[] statuses)
         => _db.Appointments.AsNoTracking()
             .Include(a => a.ScheduleSlot)
             .Include(a => a.Department)
             .Include(a => a.Patient)
             .Where(a => a.DoctorId == doctorId
-                     && statuses.Contains(a.Status)
-                     && a.ScheduleSlot.SlotDate == slotDate)
+                     && statuses.Contains(a.Status))
             .OrderBy(a => a.ReadyAt)
             .ThenBy(a => a.ScheduleSlot.StartTime)
             .ToListAsync();

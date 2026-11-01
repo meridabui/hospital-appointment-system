@@ -7,15 +7,13 @@ using HospitalAppointment.Api.Exceptions;
 using Microsoft.EntityFrameworkCore;
 
 // Trong Repositories có 2 IAppointmentRepository (đặt lịch và tiếp nhận).
-// Luồng khám dùng bản Interfaces (có FindByIdAsync, GetByDoctorStatusesAndDateAsync).
+// Luồng khám dùng bản Interfaces (có FindByIdAsync, GetByDoctorAndStatusesAsync).
 using IAppointmentRepository = HospitalAppointment.Api.Repositories.IAppointmentRepository;
 
 namespace HospitalAppointment.Api.Services;
 
 public class ExaminationService : IExaminationService
 {
-    private const int HospitalUtcOffsetHours = 7;
-
     private static readonly AppointmentStatus[] VisibleStatuses =
     {
         AppointmentStatus.ReadyForConsultation,
@@ -35,10 +33,8 @@ public class ExaminationService : IExaminationService
     {
         var doctor = await GetActiveDoctorAsync(userId);
 
-        var today = DateOnly.FromDateTime(DateTime.UtcNow.AddHours(HospitalUtcOffsetHours));
-
-        var appointments = await _appointmentRepository.GetByDoctorStatusesAndDateAsync(
-            doctor.DoctorId, VisibleStatuses, today);
+        var appointments = await _appointmentRepository.GetByDoctorAndStatusesAsync(
+            doctor.DoctorId, VisibleStatuses);
 
         return appointments.Select(x => new ReadyPatientDto
         {

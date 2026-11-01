@@ -81,6 +81,7 @@ builder.Services.AddScoped<INurseService, NurseService>();
 
 builder.Services.AddScoped<IDepartmentRepository, DepartmentRepository>();
 builder.Services.AddScoped<IDepartmentService, DepartmentService>();
+builder.Services.AddScoped<IExaminationService, ExaminationService>();
 // AppointmentRepository hiện thực 2 interface cùng tên ở 2 namespace -> đăng ký cả hai
 builder.Services.AddScoped<IAppointmentReceptionService, AppointmentReceptionService>();
 builder.Services.AddScoped<IReceptionService, ReceptionService>();
