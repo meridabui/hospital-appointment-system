@@ -16,8 +16,12 @@ public class BookingService : IBookingService
         "Khung giờ này vừa có người khác đặt. Vui lòng chọn khung giờ khác.";
 
     private readonly IUnitOfWork _uow;
-
-    public BookingService(IUnitOfWork uow) => _uow = uow;
+    private readonly INotificationService _notifications;
+    public BookingService(IUnitOfWork uow, INotificationService notifications)
+    {
+        _uow = uow;
+        _notifications = notifications;
+    }
 
     public async Task<AppointmentResponse> CreateAsync(int userId, CreateAppointmentRequest request)
     {
@@ -85,6 +89,15 @@ public class BookingService : IBookingService
 
             throw new AppException("Không thể tạo mã lịch hẹn. Vui lòng thử lại.", StatusCodes.Status409Conflict);
         }
+
+        await _notifications.SendAppointmentBookedAsync(new Appointment
+        {
+            AppointmentCode = appointment.AppointmentCode,
+            Patient = patient,
+            Doctor = doctor,
+            Department = department,
+            ScheduleSlot = slot
+        });
 
         // 8. Mã Appointment và thông báo
         return new AppointmentResponse

@@ -117,4 +117,20 @@ public sealed class NotificationService : INotificationService
         sb.Append($"<td style=\"padding:6px 8px;border:1px solid #e5e7eb\">{encodedValue}</td>");
         sb.Append("</tr>");
     }
+    public Task SendAppointmentRejectedAsync(Appointment appointment)
+    => SendAsync(
+        appointment,
+        type: "APPOINTMENT_REJECTED",
+        subject: $"[Bệnh viện] Lịch hẹn {appointment.AppointmentCode} không được chấp nhận",
+        heading: "Lịch hẹn của bạn không được chấp nhận",
+        message: $"Rất tiếc, lịch hẹn dưới đây không thể được xác nhận. Lý do: {appointment.RejectionReason}. " +
+                 "Khung giờ đã được giải phóng, bạn có thể đặt lại vào khung giờ khác.");
+    public Task SendAppointmentBookedAsync(Appointment appointment)
+    => SendAsync(
+        appointment,
+        type: "APPOINTMENT_BOOKED",
+        subject: $"[Bệnh viện] Đã nhận yêu cầu đặt lịch {appointment.AppointmentCode}",
+        heading: "Đặt lịch thành công, đang chờ xác nhận",
+        message: "Bệnh viện đã nhận yêu cầu đặt lịch của bạn và sẽ xác nhận trong thời gian sớm nhất. " +
+                 "Bạn sẽ nhận email khi lịch hẹn được xác nhận hoặc không được chấp nhận.");
 }

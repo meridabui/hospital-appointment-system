@@ -78,6 +78,8 @@ public sealed class AppointmentConfirmationService : IAppointmentConfirmationSer
         AddAuditLog(appointment, receptionistUserId, "AppointmentRejected", $"Appointment rejected. Reason: {reason.Trim()}");
         await _unitOfWork.SaveChangesAsync();
 
+        await _notifications.SendAppointmentRejectedAsync(appointment);
+
         return ConfirmationOperationResult.Success(Map(appointment));
     }
 

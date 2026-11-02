@@ -22,5 +22,6 @@ public class PatientRepository : IPatientRepository
     public void Add(Patient patient) => _db.Patients.Add(patient);
     public Task<Patient?> GetActiveByUserIdAsync(int userId)
     => _db.Patients.AsNoTracking()
+        .Include(p => p.User)
         .FirstOrDefaultAsync(p => p.UserId == userId && p.User != null && p.User.IsActive);
 }
