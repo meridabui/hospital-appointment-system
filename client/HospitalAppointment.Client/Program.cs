@@ -18,6 +18,9 @@ builder.Services.AddScoped<AuthApiService>();
 builder.Services.AddScoped<NurseApiService>();
 builder.Services.AddScoped<ExaminationApiService>();
 builder.Services.AddScoped<MedicalRecordApiService>();
+builder.Services.AddScoped<PatientPortalApiService>();
+builder.Services.AddScoped<ExaminationApi>();
+builder.Services.AddScoped<MedicalRecordApi>();
 
 builder.Services.AddScoped<DepartmentApiService>();
 builder.Services.AddScoped<MedicalServiceApiService>();
