@@ -1,14 +1,17 @@
 @page "/doctor/medical-records/{AppointmentId:int}"
-@layout DoctorLayout
 @inject MedicalRecordApiService MedicalRecordApiService
 @inject IJSRuntime JS
 
 <PageTitle>Medical record</PageTitle>
 
 <RoleGuard Role="Doctor" OnAuthorized="LoadAsync">
-    <div class="d-flex justify-content-between align-items-center mb-3">
-        <h1 class="mb-0">Medical record</h1>
-        <a class="btn btn-outline-secondary" href="@BackUrl">Back to patients</a>
+    <div class="container-fluid py-4">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+        <div>
+                <h2 class="fw-bold text-primary mb-1"><i class="bi bi-file-earmark-medical me-2"></i>Medical record</h2>
+                <p class="text-muted mb-0">Examination, prescription and ordered services.</p>
+        </div>
+        <a class="btn btn-outline-secondary" href="@BackUrl"><i class="bi bi-arrow-left me-1"></i>Back to patients</a>
     </div>
 
     @if (_error is not null)
@@ -22,13 +25,13 @@
 
     @if (_loading)
     {
-        <p>Loading...</p>
+        <div class="text-center py-5"><div class="spinner-border text-primary"></div><p class="text-muted mt-2 mb-0">Loading...</p></div>
     }
     else if (_detail is not null)
     {
-        <div class="card mb-3">
+        <div class="card border-0 shadow-sm mb-4">
             <div class="card-body">
-                <h2 class="h5 card-title">@_detail.PatientName (@_detail.PatientCode)</h2>
+                <h2 class="h5 card-title fw-semibold">@_detail.PatientName (@_detail.PatientCode)</h2>
                 <p class="mb-1">Date of birth: @(_detail.DateOfBirth?.ToString("dd/MM/yyyy") ?? "-"), gender: @(_detail.Gender ?? "-")</p>
                 <p class="mb-1">Appointment: @_detail.AppointmentCode, @_detail.SlotDate.ToString("dd/MM/yyyy"), @_detail.StartTime.ToString("HH:mm") - @_detail.EndTime.ToString("HH:mm"), @_detail.DepartmentName</p>
                 <p class="mb-1">Reason: @(_detail.BookingReason ?? "-")</p>
@@ -41,8 +44,9 @@
             <StatusMessage Text="This record is read-only because the consultation is not in progress or the record is final." />
         }
 
+        <div class="card border-0 shadow-sm"><div class="card-body">
         <fieldset disabled="@(!CanEdit || _saving)">
-            <h2 class="h5">Examination</h2>
+            <h2 class="h5 fw-semibold text-primary">Examination</h2>
             <div class="mb-3">
                 <label class="form-label" for="diagnosis">Diagnosis</label>
                 <textarea id="diagnosis" class="form-control" rows="2" @bind="_form.Diagnosis"></textarea>
@@ -57,7 +61,7 @@
             </div>
 
             <div class="d-flex justify-content-between align-items-center mb-2">
-                <h2 class="h5 mb-0">Prescription</h2>
+                <h2 class="h5 fw-semibold text-primary mb-0">Prescription</h2>
                 <button type="button" class="btn btn-sm btn-outline-primary" @onclick="AddMedication">Add medication</button>
             </div>
             @foreach (var item in _form.Prescription.Items)
@@ -83,7 +87,7 @@
                 </div>
             }
 
-            <h2 class="h5">Ordered services</h2>
+            <h2 class="h5 fw-semibold text-primary">Ordered services</h2>
             <div class="input-group mb-2">
                 <select class="form-select" aria-label="Medical service" @bind="_serviceToAdd">
                     <option value="0">Select a service</option>
@@ -109,7 +113,9 @@
             <button type="button" class="btn btn-primary mt-3" @onclick="SaveAsync">@(_saving ? "Saving..." : "Save draft")</button>
             <button type="button" class="btn btn-success mt-3" @onclick="CompleteAsync">Complete consultation</button>
         </fieldset>
+        </div></div>
     }
+    </div>
 </RoleGuard>
 
 @code {

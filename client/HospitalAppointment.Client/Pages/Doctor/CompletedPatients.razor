@@ -1,13 +1,17 @@
 @page "/doctor/completed-patients"
-@layout DoctorLayout
 @inject MedicalRecordApiService MedicalRecordApiService
 
 <PageTitle>Completed patients</PageTitle>
 
 <RoleGuard Role="Doctor" OnAuthorized="LoadAsync">
-    <h1 class="mb-3">Completed patients</h1>
+    <div class="container-fluid py-4">
+    <div class="mb-4">
+                <h2 class="fw-bold text-primary mb-1"><i class="bi bi-clipboard-check me-2"></i>Completed patients</h2>
+                <p class="text-muted mb-0">Consultations you have completed.</p>
+    </div>
 
-    <div class="row g-2 mb-3">
+    <div class="card border-0 shadow-sm mb-4"><div class="card-body">
+    <div class="row g-2">
         <div class="col-md-7">
             <input class="form-control" placeholder="Search by patient name, patient code or appointment code"
                    aria-label="Search patients" @bind="_keyword" />
@@ -19,6 +23,7 @@
             <button class="btn btn-primary" disabled="@_loading" @onclick="LoadAsync">Search</button>
         </div>
     </div>
+    </div></div>
 
     @if (_error is not null)
     {
@@ -26,7 +31,7 @@
     }
     else if (_loading)
     {
-        <p>Loading...</p>
+        <div class="text-center py-5"><div class="spinner-border text-primary"></div><p class="text-muted mt-2 mb-0">Loading...</p></div>
     }
     else if (_visits.Count == 0)
     {
@@ -34,11 +39,11 @@
     }
     else
     {
-        <div class="table-responsive">
-            <table class="table table-hover align-middle">
-                <thead>
+        <div class="card border-0 shadow-sm"><div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
                     <tr>
-                        <th>Date</th>
+                        <th class="ps-3">Date</th>
                         <th>Time</th>
                         <th>Appointment</th>
                         <th>Patient</th>
@@ -50,18 +55,19 @@
                     @foreach (var visit in _visits)
                     {
                         <tr>
-                            <td>@visit.SlotDate.ToString("dd/MM/yyyy")</td>
+                            <td class="ps-3">@visit.SlotDate.ToString("dd/MM/yyyy")</td>
                             <td>@visit.StartTime.ToString("HH:mm") - @visit.EndTime.ToString("HH:mm")</td>
-                            <td>@visit.AppointmentCode</td>
-                            <td>@visit.PatientName<br /><small class="text-muted">@visit.PatientCode</small></td>
+                            <td><span class="badge bg-light text-dark border font-monospace">@visit.AppointmentCode</span></td>
+                            <td><div class="fw-semibold">@visit.PatientName</div><div class="small text-muted">@visit.PatientCode</div></td>
                             <td>@visit.DepartmentName</td>
                             <td><a class="btn btn-sm btn-primary" href="doctor/medical-records/@visit.AppointmentId">View EMR</a></td>
                         </tr>
                     }
                 </tbody>
             </table>
-        </div>
+        </div></div>
     }
+    </div>
 </RoleGuard>
 
 @code {

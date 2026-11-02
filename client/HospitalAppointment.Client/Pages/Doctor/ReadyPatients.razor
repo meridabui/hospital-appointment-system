@@ -1,13 +1,16 @@
 @page "/doctor/ready-patients"
-@layout DoctorLayout
 @inject ExaminationApiService ExaminationApiService
 
 <PageTitle>Ready patients</PageTitle>
 
 <RoleGuard Role="Doctor" OnAuthorized="LoadAsync">
-    <div class="d-flex justify-content-between align-items-center mb-3">
-        <h1 class="mb-0">Ready patients</h1>
-        <button class="btn btn-outline-primary" disabled="@_loading" @onclick="LoadAsync">Refresh</button>
+    <div class="container-fluid py-4">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+        <div>
+                <h2 class="fw-bold text-primary mb-1"><i class="bi bi-person-lines-fill me-2"></i>Ready patients</h2>
+                <p class="text-muted mb-0">Patients waiting for or currently in consultation.</p>
+        </div>
+        <button class="btn btn-outline-primary" disabled="@_loading" @onclick="LoadAsync"><i class="bi bi-arrow-clockwise me-1"></i>Refresh</button>
     </div>
 
     @if (_error is not null)
@@ -16,7 +19,7 @@
     }
     else if (_loading)
     {
-        <p>Loading...</p>
+        <div class="text-center py-5"><div class="spinner-border text-primary"></div><p class="text-muted mt-2 mb-0">Loading...</p></div>
     }
     else if (_patients.Count == 0)
     {
@@ -24,14 +27,17 @@
     }
     else
     {
-        <input class="form-control mb-3" placeholder="Search by patient name, patient code or appointment code"
-               aria-label="Search patients" @bind="_search" @bind:event="oninput" />
+        <div class="card border-0 shadow-sm mb-4"><div class="card-body">
+            <label class="form-label small fw-semibold" for="patient-search">Search patients</label>
+            <input id="patient-search" class="form-control" placeholder="Search by patient name, patient code or appointment code"
+                   @bind="_search" @bind:event="oninput" />
+        </div></div>
 
-        <div class="table-responsive">
-            <table class="table table-hover align-middle">
-                <thead>
+        <div class="card border-0 shadow-sm"><div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
                     <tr>
-                        <th>Time</th>
+                        <th class="ps-3">Time</th>
                         <th>Appointment</th>
                         <th>Patient</th>
                         <th>Department</th>
@@ -44,12 +50,12 @@
                     @foreach (var patient in FilteredPatients)
                     {
                         <tr>
-                            <td>@patient.StartTime.ToString("HH:mm") - @patient.EndTime.ToString("HH:mm")</td>
-                            <td>@patient.AppointmentCode</td>
-                            <td>@patient.PatientName<br /><small class="text-muted">@patient.PatientCode</small></td>
+                            <td class="ps-3">@patient.StartTime.ToString("HH:mm") - @patient.EndTime.ToString("HH:mm")</td>
+                            <td><span class="badge bg-light text-dark border font-monospace">@patient.AppointmentCode</span></td>
+                            <td><div class="fw-semibold">@patient.PatientName</div><div class="small text-muted">@patient.PatientCode</div></td>
                             <td>@patient.DepartmentName</td>
                             <td>@patient.BookingReason</td>
-                            <td>@patient.Status</td>
+                            <td><span class="badge @(patient.Status == InConsultation ? "bg-primary" : "bg-warning text-dark")">@patient.Status</span></td>
                             <td class="text-nowrap">
                                 <button class="btn btn-sm btn-primary" @onclick="() => OpenPopup(patient)">View</button>
                                 @if (patient.Status == InConsultation)
@@ -61,7 +67,7 @@
                     }
                 </tbody>
             </table>
-        </div>
+        </div></div>
 
     }
 
@@ -102,6 +108,7 @@
             </div>
         </div>
     }
+    </div>
 </RoleGuard>
 
 @code {
