@@ -1,6 +1,6 @@
 @page "/doctor/medical-records/{AppointmentId:int}"
 @layout DoctorLayout
-@inject MedicalRecordApi MedicalRecordApi
+@inject MedicalRecordApiService MedicalRecordApiService
 @inject IJSRuntime JS
 
 <PageTitle>Medical record</PageTitle>
@@ -133,8 +133,8 @@
 
     private async Task LoadAsync()
     {
-        var recordTask = MedicalRecordApi.GetAsync(AppointmentId);
-        var servicesTask = MedicalRecordApi.GetActiveServicesAsync();
+        var recordTask = MedicalRecordApiService.GetAsync(AppointmentId);
+        var servicesTask = MedicalRecordApiService.GetActiveServicesAsync();
         await Task.WhenAll(recordTask, servicesTask);
 
         _loading = false;
@@ -190,7 +190,7 @@
         _error = null;
         _success = null;
         _saving = true;
-        var result = await MedicalRecordApi.CompleteAsync(AppointmentId);
+        var result = await MedicalRecordApiService.CompleteAsync(AppointmentId);
         _saving = false;
 
         if (!result.IsSuccess)
@@ -221,7 +221,7 @@
         }
 
         _saving = true;
-        var result = await MedicalRecordApi.SaveAsync(AppointmentId, _form);
+        var result = await MedicalRecordApiService.SaveAsync(AppointmentId, _form);
         _saving = false;
 
         if (!result.IsSuccess)

@@ -1,13 +1,13 @@
-using HospitalAppointment.Client.Api.Models;
+using HospitalAppointment.Client.Models.MedicalRecord;
 using HospitalAppointment.Client.Core;
 
-namespace HospitalAppointment.Client.Api;
+namespace HospitalAppointment.Client.Services;
 
-public class MedicalRecordApi
+public class MedicalRecordApiService
 {
     private readonly ApiClient _api;
 
-    public MedicalRecordApi(ApiClient api)
+    public MedicalRecordApiService(ApiClient api)
     {
         _api = api;
     }

@@ -1,6 +1,6 @@
 @page "/doctor/ready-patients"
 @layout DoctorLayout
-@inject ExaminationApi ExaminationApi
+@inject ExaminationApiService ExaminationApiService
 
 <PageTitle>Ready patients</PageTitle>
 
@@ -134,7 +134,7 @@
         _starting = true;
         _popupError = null;
 
-        var result = await ExaminationApi.StartConsultationAsync(_selected!.AppointmentId);
+        var result = await ExaminationApiService.StartConsultationAsync(_selected!.AppointmentId);
         _starting = false;
 
         if (!result.IsSuccess)
@@ -152,7 +152,7 @@
         _error = null;
         _selected = null;
 
-        var result = await ExaminationApi.GetReadyPatientsAsync();
+        var result = await ExaminationApiService.GetReadyPatientsAsync();
         _loading = false;
 
         if (result.IsSuccess)

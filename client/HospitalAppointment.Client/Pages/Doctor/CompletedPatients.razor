@@ -1,6 +1,6 @@
 @page "/doctor/completed-patients"
 @layout DoctorLayout
-@inject MedicalRecordApi MedicalRecordApi
+@inject MedicalRecordApiService MedicalRecordApiService
 
 <PageTitle>Completed patients</PageTitle>
 
@@ -76,7 +76,7 @@
         _loading = true;
         _error = null;
 
-        var result = await MedicalRecordApi.GetCompletedAsync(_keyword, _date);
+        var result = await MedicalRecordApiService.GetCompletedAsync(_keyword, _date);
         _loading = false;
 
         if (result.IsSuccess)
