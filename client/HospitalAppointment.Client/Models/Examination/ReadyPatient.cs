@@ -1,4 +1,4 @@
-namespace HospitalAppointment.Client.Api.Models;
+namespace HospitalAppointment.Client.Models.Examination;
 
 public class ReadyPatient
 {

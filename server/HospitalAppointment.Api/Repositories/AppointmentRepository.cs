@@ -88,7 +88,7 @@ public class AppointmentRepository : IAppointmentRepository
     public Task<Appointment?> GetForReceptionUpdateAsync(int id)
         => _db.Appointments
             .Include(a => a.ScheduleSlot)
-            .Include(a => a.Patient)
+            .Include(a => a.Patient).ThenInclude(p => p.User)
             .Include(a => a.Doctor).ThenInclude(d => d.Staff).ThenInclude(s => s.User)
             .Include(a => a.Department)
             .Include(a => a.CheckedInByUser)
@@ -157,7 +157,7 @@ public class AppointmentRepository : IAppointmentRepository
     public Task<Appointment?> GetForReceptionUpdateAsync(int id, CancellationToken cancellationToken)
         => _db.Appointments
             .Include(a => a.ScheduleSlot)
-            .Include(a => a.Patient)
+            .Include(a => a.Patient).ThenInclude(p => p.User)
             .Include(a => a.Doctor).ThenInclude(d => d.Staff).ThenInclude(s => s.User)
             .Include(a => a.Department)
             .FirstOrDefaultAsync(a => a.AppointmentId == id, cancellationToken);
@@ -178,5 +178,7 @@ public class AppointmentRepository : IAppointmentRepository
         => _db.Appointments
             .Include(a => a.ScheduleSlot)
             .Include(a => a.Department)
+            .Include(a => a.Patient).ThenInclude(p => p.User)                                  
+            .Include(a => a.Doctor).ThenInclude(d => d.Staff).ThenInclude(s => s.User)         
             .FirstOrDefaultAsync(a => a.AppointmentId == appointmentId && a.PatientId == patientId);
 }

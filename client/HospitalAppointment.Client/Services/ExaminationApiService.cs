@@ -1,13 +1,13 @@
-using HospitalAppointment.Client.Api.Models;
+using HospitalAppointment.Client.Models.Examination;
 using HospitalAppointment.Client.Core;
 
-namespace HospitalAppointment.Client.Api;
+namespace HospitalAppointment.Client.Services;
 
-public class ExaminationApi
+public class ExaminationApiService
 {
     private readonly ApiClient _api;
 
-    public ExaminationApi(ApiClient api)
+    public ExaminationApiService(ApiClient api)
     {
         _api = api;
     }

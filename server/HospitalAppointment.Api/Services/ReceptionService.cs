@@ -10,13 +10,16 @@ public sealed class ReceptionService : IReceptionService
 {
     private readonly IUnitOfWork _unitOfWork;
     private readonly IHospitalClock _clock;
+    private readonly INotificationService _notifications;
 
     public ReceptionService(
         IUnitOfWork unitOfWork,
-        IHospitalClock clock)
+        IHospitalClock clock,
+        INotificationService notifications)
     {
         _unitOfWork = unitOfWork;
         _clock = clock;
+        _notifications = notifications;
     }
 
     public async Task<IReadOnlyList<ReceptionAppointmentDto>> SearchAsync(
@@ -88,7 +91,13 @@ public sealed class ReceptionService : IReceptionService
         appointment.MarkNoShow(receptionistUserId, _clock.UtcNow, reason);
         AddAuditLog(appointment, receptionistUserId, "AppointmentNoShow", $"No-show reason: {reason.Trim()}");
 
-        return await SaveAsync(appointment, cancellationToken);
+        var result = await SaveAsync(appointment, cancellationToken);
+        if (result.IsSuccess)
+        {
+            await _notifications.SendAppointmentNoShowAsync(appointment);
+        }
+
+        return result;
     }
 
     private async Task<ReceptionOperationResult> SaveAsync(

@@ -3,7 +3,6 @@ using HospitalAppointment.Api.DTOs.Examination;
 using HospitalAppointment.Api.Models.Entities;
 using HospitalAppointment.Api.Models.Enums;
 using HospitalAppointment.Api.Repositories;
-using HospitalAppointment.Api.Exceptions;
 using Microsoft.EntityFrameworkCore;
 
 // Trong Repositories có 2 IAppointmentRepository (đặt lịch và tiếp nhận).
@@ -63,7 +62,7 @@ public class ExaminationService : IExaminationService
         var doctor = await GetActiveDoctorAsync(userId);
 
         var appointment = await _appointmentRepository.FindByIdAsync(appointmentId)
-    ?? throw new NotFoundException("Appointment not found.");
+            ?? throw new AppException("Không tìm thấy lịch hẹn.", StatusCodes.Status404NotFound);
 
         if (appointment.DoctorId != doctor.DoctorId)
         {

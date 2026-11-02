@@ -1,6 +1,5 @@
 using HospitalAppointment.Client;
 using HospitalAppointment.Client.Extensions;
-using HospitalAppointment.Client.Api;
 using HospitalAppointment.Client.Services;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
@@ -17,9 +16,10 @@ builder.Services.AddScoped<IAppointmentConfirmationApiClient, AppointmentConfirm
 // Register Services
 builder.Services.AddScoped<AuthApiService>();
 builder.Services.AddScoped<NurseApiService>();
+builder.Services.AddScoped<ExaminationApiService>();
+builder.Services.AddScoped<MedicalRecordApiService>();
 builder.Services.AddScoped<PatientPortalApiService>();
-builder.Services.AddScoped<ExaminationApi>();
-builder.Services.AddScoped<MedicalRecordApi>();
+
 
 builder.Services.AddScoped<DepartmentApiService>();
 builder.Services.AddScoped<MedicalServiceApiService>();

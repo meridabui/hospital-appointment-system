@@ -91,6 +91,7 @@ builder.Services.AddScoped<IMedicalRecordRepository, MedicalRecordRepository>();
 builder.Services.AddScoped<IMedicalRecordService, MedicalRecordService>();
 builder.Services.AddScoped<IAppointmentRepository, AppointmentRepository>();
 
+
 builder.Services.AddScoped<
     IMedicalServiceRepository,
     MedicalServiceRepository>();
@@ -103,7 +104,9 @@ builder.Services.AddScoped<
 builder.Services.AddScoped<IScheduleRepository, ScheduleRepository>();
 
 builder.Services.AddScoped<IScheduleService, ScheduleService>();
-
+builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection(EmailSettings.SectionName));
+builder.Services.AddScoped<IEmailSender, EmailGatewayClient>();
+builder.Services.AddScoped<INotificationService, NotificationService>();
 // 6. JWT Key
 //var jwtKey = builder.Configuration["Jwt:Key"]
 //    ?? throw new InvalidOperationException("JWT Key is missing.");
