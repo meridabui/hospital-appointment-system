@@ -23,11 +23,13 @@ public class PatientAppointmentService : IPatientAppointmentService
 
     private readonly IPatientRepository _patients;
     private readonly IAppointmentRepository _appointments;
+    private readonly INotificationService _notifications;
 
-    public PatientAppointmentService(IPatientRepository patients, IAppointmentRepository appointments)
+    public PatientAppointmentService(IPatientRepository patients, IAppointmentRepository appointments, INotificationService notifications)
     {
         _patients = patients;
         _appointments = appointments;
+        _notifications = notifications;
     }
 
     public async Task<List<MyAppointmentDto>> GetMyAppointmentsAsync(int userId)
@@ -82,6 +84,7 @@ public class PatientAppointmentService : IPatientAppointmentService
                 "Lịch hẹn vừa được cập nhật bởi người khác. Vui lòng tải lại danh sách rồi thử lại.",
                 StatusCodes.Status409Conflict);
         }
+        await _notifications.SendAppointmentCancelledAsync(appointment);
 
         return new CancelAppointmentResponse
         {

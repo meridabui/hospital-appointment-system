@@ -9,11 +9,13 @@ public sealed class AppointmentConfirmationService : IAppointmentConfirmationSer
 {
     private readonly IUnitOfWork _unitOfWork;
     private readonly IHospitalClock _clock;
+    private readonly INotificationService _notifications;
 
-    public AppointmentConfirmationService(IUnitOfWork unitOfWork, IHospitalClock clock)
+    public AppointmentConfirmationService(IUnitOfWork unitOfWork, IHospitalClock clock, INotificationService notifications)
     {
         _unitOfWork = unitOfWork;
         _clock = clock;
+        _notifications = notifications;
     }
 
     public async Task<IReadOnlyList<ConfirmationAppointmentDto>> GetPendingAsync(
@@ -47,6 +49,8 @@ public sealed class AppointmentConfirmationService : IAppointmentConfirmationSer
         appointment.Confirm(receptionistUserId, _clock.UtcNow);
         AddAuditLog(appointment, receptionistUserId, "AppointmentConfirmed", "Appointment confirmed by reception.");
         await _unitOfWork.SaveChangesAsync();
+
+        await _notifications.SendAppointmentConfirmedAsync(appointment);
 
         return ConfirmationOperationResult.Success(Map(appointment));
     }
