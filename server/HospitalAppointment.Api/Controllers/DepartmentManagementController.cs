@@ -7,13 +7,13 @@ using Microsoft.AspNetCore.Mvc;
 namespace HospitalAppointment.Api.Controllers;
 
 [ApiController]
-[Route("api/[controller]")]
+[Route("api/Department")] // giữ nguyên URL cũ để Client không phải sửa
 [Authorize(Roles = "MedicalServiceManager")]
-public class DepartmentController : ControllerBase
+public class DepartmentManagementController : ControllerBase
 {
     private readonly IDepartmentService _departmentService;
 
-    public DepartmentController(IDepartmentService departmentService)
+    public DepartmentManagementController(IDepartmentService departmentService)
     {
         _departmentService = departmentService;
     }

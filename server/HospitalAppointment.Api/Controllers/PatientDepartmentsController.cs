@@ -9,11 +9,11 @@ namespace HospitalAppointment.Api.Controllers;
 [ApiController]
 [Route("api/departments")]
 [Authorize(Roles = RoleNames.PatientOrReceptionist)]
-public class DepartmentsController : ControllerBase
+public class PatientDepartmentsController : ControllerBase
 {
     private readonly ICatalogService _catalog;
 
-    public DepartmentsController(ICatalogService catalog) => _catalog = catalog;
+    public PatientDepartmentsController(ICatalogService catalog) => _catalog = catalog;
 
     [HttpGet]
     public async Task<ActionResult<List<DepartmentDto>>> GetDepartments()
