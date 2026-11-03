@@ -1,205 +1,669 @@
-﻿@page "/book-appointment"
+@page "/book-appointment"
 @using HospitalAppointment.Client.Models
 @using HospitalAppointment.Client.Core
+@using HospitalAppointment.Client.Components
 @inject ApiClient Api
-
+@inject NavigationManager Nav
 
 <PageTitle>Đặt lịch khám</PageTitle>
 
-<RoleGuard Role="Patient" OnAuthorized="LoadDepartmentsAsync">
-    <h1 class="h3 mb-3">Đặt lịch khám</h1>
+<RoleGuard Role="Patient" OnAuthorized="LoadInitialAsync">
+    <PatientHeader ActiveTab="book" />
 
-    @if (_step < 5)
-    {
-        <ol class="breadcrumb mb-3">
-            <li class="breadcrumb-item @(_step == 1 ? "active fw-bold" : "")">1. Chọn khoa</li>
-            <li class="breadcrumb-item @(_step == 2 ? "active fw-bold" : "")">2. Chọn bác sĩ</li>
-            <li class="breadcrumb-item @(_step == 3 ? "active fw-bold" : "")">3. Chọn ngày và giờ</li>
-            <li class="breadcrumb-item @(_step == 4 ? "active fw-bold" : "")">4. Xác nhận</li>
-        </ol>
-    }
+    <div class="booking-page-container">
+        <!-- TITLE -->
+        <div class="booking-header">
+            <h2 class="booking-title">Đăng ký hẹn khám chuyên khoa</h2>
+            <p class="booking-subtitle">Chọn khoa, bác sĩ và khung giờ phù hợp. Yêu cầu sẽ được gửi tới bộ phận Tiếp đón để xác nhận.</p>
+        </div>
 
-    @if (!string.IsNullOrEmpty(_error))
-    {
-        <div class="alert alert-danger" role="alert">@_error</div>
-    }
+        @if (!string.IsNullOrEmpty(_error))
+        {
+            <div class="alert alert-danger" role="alert">@_error</div>
+        }
 
-    @if (_busy)
-    {
-        <div class="text-muted mb-2">Đang tải...</div>
-    }
-
-    @* ---------- Bước 1: chọn khoa ---------- *@
-    @if (_step == 1)
-    {
-        <div class="row g-3">
-            @foreach (var d in _departments)
-            {
-                <div class="col-md-4">
-                    <div class="card h-100">
-                        <div class="card-body d-flex flex-column">
-                            <h5 class="card-title">@d.DepartmentName</h5>
-                            <p class="card-text text-muted flex-grow-1">@d.Description</p>
-                            <button class="btn btn-primary" disabled="@_busy" @onclick="() => SelectDepartmentAsync(d)">
-                                Chọn khoa này
-                            </button>
-                        </div>
+        @if (_result != null)
+        {
+            <!-- RESULT SUCCESS CARD -->
+            <div class="booking-card success-card">
+                <div class="success-banner">
+                    <div class="success-icon">✓</div>
+                    <div>
+                        <h4 class="mb-1 text-success">Đã gửi yêu cầu đặt lịch thành công!</h4>
+                        <p class="text-muted mb-0">@_result.Message</p>
                     </div>
                 </div>
-            }
-        </div>
 
-        @if (!_busy && _departments.Count == 0)
-        {
-            <p class="text-muted">Hiện chưa có khoa nào đang hoạt động.</p>
-        }
-    }
-
-    @* ---------- Bước 2: chọn bác sĩ ---------- *@
-    @if (_step == 2 && _department != null)
-    {
-        <h5 class="mb-3">Khoa: @_department.DepartmentName</h5>
-
-        @if (!_busy && _doctors.Count == 0)
-        {
-            <div class="alert alert-info">Khoa này hiện chưa có bác sĩ nào còn lịch khám trống.</div>
-        }
-
-        <div class="row g-3 mb-3">
-            @foreach (var doc in _doctors)
-            {
-                <div class="col-md-6">
-                    <div class="card h-100">
-                        <div class="card-body">
-                            <h5 class="card-title">BS. @doc.FullName</h5>
-                            <p class="mb-1"><span class="text-muted">Chuyên khoa:</span> @(doc.Specialty ?? _department.DepartmentName)</p>
-                            <p class="mb-1"><span class="text-muted">Khung giờ còn trống:</span> @doc.AvailableSlotCount</p>
-                            @if (doc.NextAvailableDate.HasValue)
-                            {
-                                <p class="mb-3"><span class="text-muted">Lịch gần nhất:</span> @ViVn.FormatDate(doc.NextAvailableDate.Value)</p>
-                            }
-                            <button class="btn btn-primary" disabled="@_busy" @onclick="() => SelectDoctorAsync(doc)">
-                                Chọn bác sĩ này
-                            </button>
-                        </div>
+                <div class="summary-details">
+                    <div class="summary-row">
+                        <span class="summary-label">Mã lịch hẹn:</span>
+                        <span class="summary-val text-primary fw-bold">@_result.AppointmentCode</span>
                     </div>
+                    <div class="summary-row">
+                        <span class="summary-label">Trạng thái:</span>
+                        <span class="badge bg-warning text-dark">@_result.Status (Chờ tiếp đón xác nhận)</span>
+                    </div>
+                    <div class="summary-row">
+                        <span class="summary-label">Chuyên khoa:</span>
+                        <span class="summary-val">@_result.DepartmentName</span>
+                    </div>
+                    <div class="summary-row">
+                        <span class="summary-label">Bác sĩ:</span>
+                        <span class="summary-val">BS. @_result.DoctorName</span>
+                    </div>
+                    <div class="summary-row">
+                        <span class="summary-label">Thời gian:</span>
+                        <span class="summary-val">@ViVn.FormatTime(_result.StartTime) - @ViVn.FormatTime(_result.EndTime) &middot; Ngày: @ViVn.FormatDate(_result.Date)</span>
+                    </div>
+                    @if (!string.IsNullOrEmpty(_result.BookingReason))
+                    {
+                        <div class="summary-row">
+                            <span class="summary-label">Lý do khám:</span>
+                            <span class="summary-val fst-italic">“@_result.BookingReason”</span>
+                        </div>
+                    }
                 </div>
-            }
-        </div>
 
-        <button class="btn btn-outline-secondary" disabled="@_busy" @onclick="Back">Quay lại</button>
-    }
-
-    @* ---------- Bước 3: chọn ngày và giờ ---------- *@
-    @if (_step == 3 && _doctor != null && _department != null)
-    {
-        <h5 class="mb-1">BS. @_doctor.FullName</h5>
-        <p class="text-muted">@_department.DepartmentName @(string.IsNullOrEmpty(_doctor.Specialty) ? "" : "- " + _doctor.Specialty)</p>
-
-        <h6>Lịch làm việc (các ngày còn khung giờ trống)</h6>
-        @if (!_busy && _dates.Count == 0)
-        {
-            <div class="alert alert-info">Bác sĩ này hiện không còn khung giờ trống. Vui lòng chọn bác sĩ khác.</div>
-        }
-
-        <div class="d-flex flex-wrap gap-2 mb-3">
-            @foreach (var d in _dates)
-            {
-                <button class="btn @(_date?.Date == d.Date ? "btn-primary" : "btn-outline-primary")"
-                        disabled="@_busy" @onclick="() => SelectDateAsync(d)">
-                    @ViVn.FormatDate(d.Date)<br />
-                    <small>@d.AvailableSlotCount khung giờ</small>
-                </button>
-            }
-        </div>
-
-        @if (_date != null)
-        {
-            <h6>Khung giờ trống - @ViVn.FormatDate(_date.Date)</h6>
-
-            @if (!_busy && _slots.Count == 0)
-            {
-                <p class="text-muted">Ngày này không còn khung giờ trống.</p>
-            }
-
-            <div class="d-flex flex-wrap gap-2 mb-3">
-                @foreach (var s in _slots)
-                {
-                    <button class="btn btn-outline-success" disabled="@_busy" @onclick="() => SelectSlot(s)">
-                        @ViVn.FormatTime(s.StartTime) - @ViVn.FormatTime(s.EndTime)
-                    </button>
-                }
+                <div class="d-flex gap-3 mt-4">
+                    <a href="my-appointments" class="btn btn-primary px-4 py-2">Xem danh sách lịch hẹn</a>
+                    <button class="btn btn-outline-secondary px-4 py-2" @onclick="ResetAsync">Đặt thêm lịch khác</button>
+                </div>
             </div>
         }
+        else
+        {
+            <div class="booking-card">
 
-        <button class="btn btn-outline-secondary" disabled="@_busy" @onclick="Back">Quay lại</button>
-    }
+                <!-- STEP 1: CHỌN CHUYÊN KHOA -->
+                <div class="step-section">
+                    <div class="step-title">
+                        <span class="step-num">1</span>
+                        <span>CHỌN CHUYÊN KHOA TIẾP NHẬN (*)</span>
+                    </div>
 
-    @* ---------- Bước 4: kiểm tra lại và gửi yêu cầu ---------- *@
-    @if (_step == 4 && _department != null && _doctor != null && _date != null && _slot != null)
-    {
-        <h5 class="mb-3">Kiểm tra lại thông tin đặt lịch</h5>
+                    @if (_busy && _departments.Count == 0)
+                    {
+                        <div class="loading-text">Đang tải danh sách chuyên khoa...</div>
+                    }
+                    else if (_departments.Count == 0)
+                    {
+                        <p class="text-muted">Hiện chưa có chuyên khoa nào đang hoạt động.</p>
+                    }
+                    else
+                    {
+                        <div class="departments-grid">
+                            @foreach (var d in _departments)
+                            {
+                                var isSelected = _department?.DepartmentId == d.DepartmentId;
+                                <div class="dept-card @(isSelected ? "selected" : "")"
+                                     @onclick="() => SelectDepartmentAsync(d)">
+                                    <div class="dept-header">
+                                        <h4 class="dept-name">@d.DepartmentName</h4>
+                                    </div>
+                                    <p class="dept-desc">
+                                        @(string.IsNullOrWhiteSpace(d.Description) ? "Khám và điều trị chuyên sâu theo tiêu chuẩn." : d.Description)
+                                    </p>
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
 
-        <dl class="row">
-            <dt class="col-sm-3">Khoa</dt>
-            <dd class="col-sm-9">@_department.DepartmentName</dd>
-            <dt class="col-sm-3">Bác sĩ</dt>
-            <dd class="col-sm-9">BS. @_doctor.FullName</dd>
-            <dt class="col-sm-3">Ngày khám</dt>
-            <dd class="col-sm-9">@ViVn.FormatDate(_slot.Date)</dd>
-            <dt class="col-sm-3">Giờ khám</dt>
-            <dd class="col-sm-9">@ViVn.FormatTime(_slot.StartTime) - @ViVn.FormatTime(_slot.EndTime)</dd>
-        </dl>
+                <!-- STEP 2: CHỌN BÁC SĨ -->
+                @if (_department != null)
+                {
+                    <div class="step-section">
+                        <div class="step-title">
+                            <span class="step-num">2</span>
+                            <span>CHỌN BÁC SĨ PHỤ TRÁCH (*)</span>
+                        </div>
 
-        <div class="mb-3">
-            <label class="form-label" for="reason">Lý do khám (không bắt buộc)</label>
-            <textarea id="reason" class="form-control" rows="3" maxlength="500" @bind="_reason"></textarea>
-        </div>
+                        @if (_loadingDoctors)
+                        {
+                            <div class="loading-text">Đang tìm bác sĩ khoa @_department.DepartmentName...</div>
+                        }
+                        else if (_doctors.Count == 0)
+                        {
+                            <div class="alert alert-info py-2">Chuyên khoa này hiện chưa có bác sĩ nào mở lịch khám.</div>
+                        }
+                        else
+                        {
+                            <div class="doctors-grid">
+                                @foreach (var doc in _doctors)
+                                {
+                                    var isSelected = _doctor?.DoctorId == doc.DoctorId;
+                                    <div class="doc-card @(isSelected ? "selected" : "")"
+                                         @onclick="() => SelectDoctorAsync(doc)">
+                                        <div class="doc-avatar">
+                                            @GetDoctorInitial(doc.FullName)
+                                        </div>
+                                        <div class="doc-info">
+                                            <div class="doc-name">BS. @doc.FullName</div>
+                                            <div class="doc-spec">@(doc.Specialty ?? _department.DepartmentName)</div>
+                                            <div class="doc-slots">
+                                                @(doc.AvailableSlotCount > 0 ? $"{doc.AvailableSlotCount} khung giờ còn trống" : "Lịch khám theo ca")
+                                            </div>
+                                        </div>
+                                        @if (isSelected)
+                                        {
+                                            <div class="doc-check">✓</div>
+                                        }
+                                    </div>
+                                }
+                            </div>
+                        }
+                    </div>
+                }
 
-        <button class="btn btn-outline-secondary" disabled="@_busy" @onclick="Back">Quay lại</button>
-        <button class="btn btn-primary" disabled="@_busy" @onclick="SubmitAsync">
-            @(_busy ? "Đang gửi..." : "Xác nhận đặt lịch")
-        </button>
-    }
+                <!-- STEP 3: CHỌN NGÀY & KHUNG GIỜ -->
+                @if (_doctor != null)
+                {
+                    <div class="step-section">
+                        <div class="step-title">
+                            <span class="step-num">3</span>
+                            <span>CHỌN NGÀY &amp; KHUNG GIỜ KHÁM CÒN TRỐNG (*)</span>
+                        </div>
 
-    @* ---------- Bước 5: kết quả ---------- *@
-    @if (_step == 5 && _result != null)
-    {
-        <div class="alert alert-success" role="alert">
-            <h5 class="alert-heading">Đã gửi yêu cầu đặt lịch</h5>
-            <p class="mb-0">@_result.Message</p>
-        </div>
+                        <!-- DATE SELECTION -->
+                        <div class="mb-3">
+                            <label class="field-label">Ngày dự kiến khám:</label>
+                            <div class="d-flex flex-wrap align-items-center gap-3">
+                                <input type="date"
+                                       class="date-input"
+                                       value="@_selectedDateString"
+                                       min="@DateTime.Today.ToString("yyyy-MM-dd")"
+                                       @onchange="OnDateInputChanged" />
 
-        <dl class="row">
-            <dt class="col-sm-3">Mã lịch hẹn</dt>
-            <dd class="col-sm-9"><strong>@_result.AppointmentCode</strong></dd>
-            <dt class="col-sm-3">Trạng thái</dt>
-            <dd class="col-sm-9">
-                <span class="badge bg-warning text-dark">@_result.Status</span>
-                <small class="text-muted ms-2">Chờ bệnh viện xác nhận, chưa phải lịch đã xác nhận.</small>
-            </dd>
-            <dt class="col-sm-3">Khoa</dt>
-            <dd class="col-sm-9">@_result.DepartmentName</dd>
-            <dt class="col-sm-3">Bác sĩ</dt>
-            <dd class="col-sm-9">BS. @_result.DoctorName</dd>
-            <dt class="col-sm-3">Thời gian</dt>
-            <dd class="col-sm-9">@ViVn.FormatDate(_result.Date), @ViVn.FormatTime(_result.StartTime) - @ViVn.FormatTime(_result.EndTime)</dd>
-            @if (!string.IsNullOrEmpty(_result.BookingReason))
-            {
-                <dt class="col-sm-3">Lý do khám</dt>
-                <dd class="col-sm-9">@_result.BookingReason</dd>
-            }
-        </dl>
+                                @if (_dates.Count > 0)
+                                {
+                                    <div class="quick-dates-label text-muted small">Các ngày có lịch trống:</div>
+                                    <div class="d-flex flex-wrap gap-2">
+                                        @foreach (var d in _dates)
+                                        {
+                                            var isCurDate = _date?.Date == d.Date;
+                                            <button type="button"
+                                                    class="quick-date-btn @(isCurDate ? "active" : "")"
+                                                    @onclick="() => SelectDateAsync(d)">
+                                                @ViVn.FormatDate(d.Date)
+                                            </button>
+                                        }
+                                    </div>
+                                }
+                            </div>
+                        </div>
 
-        <button class="btn btn-primary" @onclick="ResetAsync">Đặt lịch khác</button>
-    }
+                        <!-- SLOTS SELECTION -->
+                        <div>
+                            <label class="field-label">Các khung giờ sẵn sàng tiếp nhận:</label>
+
+                            @if (_loadingSlots)
+                            {
+                                <div class="loading-text">Đang tải các khung giờ...</div>
+                            }
+                            else if (_date == null)
+                            {
+                                <p class="text-muted small">Vui lòng chọn ngày để hiển thị các khung giờ khám.</p>
+                            }
+                            else if (_slots.Count == 0)
+                            {
+                                <div class="alert alert-warning py-2 mb-0">Ngày này không còn khung giờ trống. Vui lòng chọn ngày khác.</div>
+                            }
+                            else
+                            {
+                                <div class="slots-grid">
+                                    @foreach (var s in _slots)
+                                    {
+                                        var isSelected = _slot?.ScheduleSlotId == s.ScheduleSlotId;
+                                        <div class="slot-item @(isSelected ? "selected" : "")"
+                                             @onclick="() => SelectSlot(s)">
+                                            <div class="slot-time">@ViVn.FormatTime(s.StartTime) - @ViVn.FormatTime(s.EndTime)</div>
+                                            <div class="slot-status">CÒN TRỐNG</div>
+                                        </div>
+                                    }
+                                </div>
+                            }
+                        </div>
+                    </div>
+                }
+
+                <!-- STEP 4: MÔ TẢ LÝ DO KHÁM -->
+                <div class="step-section">
+                    <div class="step-title">
+                        <span class="step-num">4</span>
+                        <span>MÔ TẢ LÝ DO KHÁM HOẶC TRIỆU CHỨNG BAN ĐẦU</span>
+                    </div>
+
+                    <textarea class="reason-textarea"
+                              rows="3"
+                              maxlength="500"
+                              placeholder="Ví dụ: Đau tức ngực trái 2 hôm nay khi thở sâu, có tiền sử tăng huyết áp..."
+                              @bind="_reason"></textarea>
+                </div>
+
+                <!-- FOOTER ACTION BAR -->
+                <div class="action-footer">
+                    <div class="status-note">
+                        Lịch hẹn sau khi gửi sẽ có trạng thái <strong>Pending</strong> và được Lễ tân xác nhận.
+                    </div>
+
+                    <button class="confirm-btn"
+                            disabled="@(!CanSubmit || _busy)"
+                            @onclick="SubmitAsync">
+                        @(_busy ? "Đang xử lý..." : "Xác Nhận Đặt Lịch Khám")
+                    </button>
+                </div>
+
+            </div>
+        }
+    </div>
 </RoleGuard>
+
+<style>
+    .booking-page-container {
+        padding: 0 10px;
+    }
+
+    .booking-header {
+        margin-bottom: 22px;
+    }
+
+    .booking-title {
+        font-size: 20px;
+        font-weight: 700;
+        color: #0f172a;
+        margin: 0;
+    }
+
+    .booking-subtitle {
+        font-size: 13.5px;
+        color: #64748b;
+        margin: 4px 0 0 0;
+    }
+
+    .booking-card {
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 28px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+    }
+
+    /* STEP SECTION */
+    .step-section {
+        margin-bottom: 28px;
+        padding-bottom: 24px;
+        border-bottom: 1px dashed #e2e8f0;
+    }
+
+    .step-section:last-of-type {
+        border-bottom: none;
+        padding-bottom: 0;
+    }
+
+    .step-title {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 13px;
+        font-weight: 700;
+        color: #1e293b;
+        letter-spacing: 0.3px;
+        margin-bottom: 16px;
+    }
+
+    .step-num {
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
+        background: #2563eb;
+        color: white;
+        font-size: 12px;
+        font-weight: 700;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    /* DEPARTMENTS GRID */
+    .departments-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 14px;
+    }
+
+    .dept-card {
+        background: #ffffff;
+        border: 1.5px solid #e2e8f0;
+        border-radius: 10px;
+        padding: 18px 20px;
+        cursor: pointer;
+        transition: all 0.15s ease-in-out;
+    }
+
+    .dept-card:hover {
+        border-color: #93c5fd;
+        background: #f8fafc;
+    }
+
+    .dept-card.selected {
+        border-color: #2563eb;
+        background: #eff6ff;
+        box-shadow: 0 2px 6px rgba(37, 99, 235, 0.1);
+    }
+
+    .dept-header {
+        display: flex;
+        align-items: center;
+        margin-bottom: 6px;
+    }
+
+    .dept-name {
+        font-size: 15px;
+        font-weight: 700;
+        color: #0f172a;
+        margin: 0;
+    }
+
+    .dept-card.selected .dept-name {
+        color: #1d4ed8;
+    }
+
+    .dept-desc {
+        font-size: 12.5px;
+        color: #64748b;
+        margin: 0;
+        line-height: 1.45;
+    }
+
+    /* DOCTORS GRID */
+    .doctors-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+        gap: 14px;
+    }
+
+    .doc-card {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        background: #ffffff;
+        border: 1.5px solid #e2e8f0;
+        border-radius: 10px;
+        padding: 16px;
+        cursor: pointer;
+        transition: all 0.15s ease;
+        position: relative;
+    }
+
+    .doc-card:hover {
+        border-color: #93c5fd;
+        background: #f8fafc;
+    }
+
+    .doc-card.selected {
+        border-color: #2563eb;
+        background: #eff6ff;
+        box-shadow: 0 2px 6px rgba(37, 99, 235, 0.1);
+    }
+
+    .doc-avatar {
+        width: 44px;
+        height: 44px;
+        border-radius: 50%;
+        background: #e2e8f0;
+        color: #475569;
+        font-weight: 700;
+        font-size: 15px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+
+    .doc-card.selected .doc-avatar {
+        background: #dbeafe;
+        color: #1d4ed8;
+    }
+
+    .doc-info {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .doc-name {
+        font-size: 14.5px;
+        font-weight: 700;
+        color: #0f172a;
+    }
+
+    .doc-spec {
+        font-size: 12.5px;
+        font-weight: 600;
+        color: #2563eb;
+        margin-top: 2px;
+    }
+
+    .doc-slots {
+        font-size: 11.5px;
+        color: #64748b;
+        margin-top: 2px;
+    }
+
+    .doc-check {
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        background: #2563eb;
+        color: white;
+        font-size: 12px;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    /* DATES & SLOTS */
+    .field-label {
+        font-size: 13px;
+        font-weight: 600;
+        color: #334155;
+        margin-bottom: 8px;
+        display: block;
+    }
+
+    .date-input {
+        height: 42px;
+        padding: 0 14px;
+        border: 1.5px solid #cbd5e1;
+        border-radius: 8px;
+        background: #ffffff;
+        color: #1e293b;
+        font-size: 14px;
+        outline: none;
+    }
+
+    .date-input:focus {
+        border-color: #2563eb;
+    }
+
+    .quick-date-btn {
+        background: #ffffff;
+        border: 1px solid #cbd5e1;
+        border-radius: 6px;
+        padding: 5px 12px;
+        font-size: 12px;
+        font-weight: 600;
+        color: #475569;
+        cursor: pointer;
+        transition: 0.15s;
+    }
+
+    .quick-date-btn:hover {
+        background: #f1f5f9;
+        color: #0f172a;
+    }
+
+    .quick-date-btn.active {
+        background: #2563eb;
+        border-color: #2563eb;
+        color: white;
+    }
+
+    .slots-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+        gap: 12px;
+        margin-top: 8px;
+    }
+
+    .slot-item {
+        background: #ffffff;
+        border: 1.5px solid #cbd5e1;
+        border-radius: 8px;
+        padding: 10px 12px;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.15s ease;
+    }
+
+    .slot-item:hover {
+        border-color: #93c5fd;
+        background: #f8fafc;
+    }
+
+    .slot-item.selected {
+        border-color: #2563eb;
+        background: #eff6ff;
+        box-shadow: 0 2px 5px rgba(37, 99, 235, 0.12);
+    }
+
+    .slot-time {
+        font-size: 12.5px;
+        font-weight: 700;
+        color: #0f172a;
+    }
+
+    .slot-status {
+        font-size: 10px;
+        font-weight: 700;
+        color: #16a34a;
+        margin-top: 3px;
+        letter-spacing: 0.3px;
+    }
+
+    /* REASON */
+    .reason-textarea {
+        width: 100%;
+        border: 1.5px solid #cbd5e1;
+        border-radius: 8px;
+        padding: 12px 14px;
+        font-size: 13.5px;
+        color: #1e293b;
+        outline: none;
+        resize: vertical;
+        box-sizing: border-box;
+    }
+
+    .reason-textarea:focus {
+        border-color: #2563eb;
+    }
+
+    /* FOOTER */
+    .action-footer {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 28px;
+        padding-top: 20px;
+        border-top: 1px solid #f1f5f9;
+        flex-wrap: wrap;
+        gap: 16px;
+    }
+
+    .status-note {
+        font-size: 12.5px;
+        color: #64748b;
+    }
+
+    .confirm-btn {
+        background: #2563eb;
+        border: none;
+        border-radius: 8px;
+        color: white;
+        padding: 11px 24px;
+        font-size: 14px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: background 0.2s;
+    }
+
+    .confirm-btn:hover:not(:disabled) {
+        background: #1d4ed8;
+    }
+
+    .confirm-btn:disabled {
+        opacity: 0.55;
+        cursor: not-allowed;
+    }
+
+    .loading-text {
+        font-size: 13px;
+        color: #64748b;
+        font-style: italic;
+    }
+
+    /* SUCCESS SUMMARY */
+    .success-banner {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        margin-bottom: 24px;
+        padding-bottom: 20px;
+        border-bottom: 1px solid #f1f5f9;
+    }
+
+    .success-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        background: #dcfce7;
+        color: #16a34a;
+        font-size: 24px;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .summary-details {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        font-size: 14px;
+    }
+
+    .summary-row {
+        display: flex;
+        gap: 12px;
+    }
+
+    .summary-label {
+        width: 140px;
+        color: #64748b;
+        flex-shrink: 0;
+    }
+
+    .summary-val {
+        color: #0f172a;
+    }
+</style>
 
 @code {
     private const string GenericError = "Đã xảy ra lỗi khi xử lý dữ liệu. Vui lòng thử lại.";
 
-    private int _step = 1; // 1 khoa, 2 bác sĩ, 3 ngày giờ, 4 xác nhận, 5 kết quả
     private bool _busy;
+    private bool _loadingDoctors;
+    private bool _loadingSlots;
     private string? _error;
     private string? _reason;
 
@@ -214,6 +678,22 @@
     private SlotDto? _slot;
     private AppointmentResponse? _result;
 
+    private string _selectedDateString = "";
+
+    private bool CanSubmit => _department != null && _doctor != null && _slot != null;
+
+    private static string GetDoctorInitial(string? name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return "D";
+        var parts = name.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        return parts[^1][0].ToString().ToUpperInvariant();
+    }
+
+    private async Task LoadInitialAsync()
+    {
+        await LoadDepartmentsAsync();
+    }
+
     private async Task LoadDepartmentsAsync()
     {
         _busy = true;
@@ -222,7 +702,6 @@
         try
         {
             var res = await Api.GetAsync<List<DepartmentDto>>("api/departments");
-
             if (res.IsSuccess) _departments = res.Data ?? new();
             else _error = res.ErrorMessage;
         }
@@ -232,24 +711,35 @@
         }
         finally
         {
-            _busy = false; // luôn bỏ trạng thái "Đang tải" kể cả khi có exception
+            _busy = false;
         }
     }
 
     private async Task SelectDepartmentAsync(DepartmentDto department)
     {
-        _busy = true;
+        _department = department;
+        _doctor = null;
+        _date = null;
+        _slot = null;
+        _doctors = new();
+        _dates = new();
+        _slots = new();
+        _selectedDateString = "";
         _error = null;
+
+        _loadingDoctors = true;
 
         try
         {
             var res = await Api.GetAsync<List<DoctorListItemDto>>($"api/departments/{department.DepartmentId}/doctors");
-
-            if (!res.IsSuccess) { _error = res.ErrorMessage; return; }
-
-            _department = department;
-            _doctors = res.Data ?? new();
-            _step = 2;
+            if (res.IsSuccess)
+            {
+                _doctors = res.Data ?? new();
+            }
+            else
+            {
+                _error = res.ErrorMessage;
+            }
         }
         catch (Exception)
         {
@@ -257,28 +747,42 @@
         }
         finally
         {
-            _busy = false;
+            _loadingDoctors = false;
         }
     }
 
     private async Task SelectDoctorAsync(DoctorListItemDto doctor)
     {
-        _busy = true;
+        _doctor = doctor;
+        _date = null;
+        _slot = null;
+        _dates = new();
+        _slots = new();
+        _selectedDateString = "";
         _error = null;
+
+        _loadingSlots = true;
 
         try
         {
             var res = await Api.GetAsync<List<AvailableDateDto>>(
                 $"api/doctors/{doctor.DoctorId}/available-dates?departmentId={_department!.DepartmentId}");
 
-            if (!res.IsSuccess) { _error = res.ErrorMessage; return; }
-
-            _doctor = doctor;
-            _dates = res.Data ?? new();
-            _date = null;
-            _slots = new();
-            _slot = null;
-            _step = 3;
+            if (res.IsSuccess)
+            {
+                _dates = res.Data ?? new();
+                if (_dates.Count > 0)
+                {
+                    // Chọn ngày gần nhất tự động
+                    var firstDate = _dates[0];
+                    _selectedDateString = firstDate.Date.ToString("yyyy-MM-dd");
+                    await SelectDateAsync(firstDate);
+                }
+            }
+            else
+            {
+                _error = res.ErrorMessage;
+            }
         }
         catch (Exception)
         {
@@ -286,18 +790,32 @@
         }
         finally
         {
-            _busy = false;
+            _loadingSlots = false;
+        }
+    }
+
+    private async Task OnDateInputChanged(ChangeEventArgs e)
+    {
+        _selectedDateString = e.Value?.ToString() ?? "";
+        if (DateOnly.TryParse(_selectedDateString, out var parsedDate))
+        {
+            var existing = _dates.FirstOrDefault(d => d.Date == parsedDate);
+            var target = existing ?? new AvailableDateDto { Date = parsedDate };
+            await SelectDateAsync(target);
         }
     }
 
     private async Task SelectDateAsync(AvailableDateDto date)
     {
-        _busy = true;
+        _loadingSlots = true;
         _error = null;
+        _slot = null;
+        _date = date;
+        _selectedDateString = date.Date.ToString("yyyy-MM-dd");
 
         try
         {
-            if (await LoadSlotsAsync(date)) _date = date;
+            await LoadSlotsAsync(date);
         }
         catch (Exception)
         {
@@ -305,19 +823,22 @@
         }
         finally
         {
-            _busy = false;
+            _loadingSlots = false;
         }
     }
 
     private async Task<bool> LoadSlotsAsync(AvailableDateDto date)
     {
-        // Dùng InvariantCulture để query string luôn là yyyy-MM-dd, không phụ thuộc ngôn ngữ trình duyệt
         var dateText = date.Date.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
 
         var res = await Api.GetAsync<List<SlotDto>>(
             $"api/doctors/{_doctor!.DoctorId}/slots?departmentId={_department!.DepartmentId}&date={dateText}");
 
-        if (!res.IsSuccess) { _error = res.ErrorMessage; return false; }
+        if (!res.IsSuccess)
+        {
+            _error = res.ErrorMessage;
+            return false;
+        }
 
         _slots = res.Data ?? new();
         return true;
@@ -327,11 +848,12 @@
     {
         _error = null;
         _slot = slot;
-        _step = 4;
     }
 
     private async Task SubmitAsync()
     {
+        if (!CanSubmit || _busy) return;
+
         _busy = true;
         _error = null;
 
@@ -350,21 +872,18 @@
             if (res.IsSuccess && res.Data != null)
             {
                 _result = res.Data;
-                _step = 5;
                 return;
             }
 
             var message = res.IsSuccess ? GenericError : res.ErrorMessage;
 
-            // 409: slot vừa bị người khác đặt (hoặc bạn đã có lịch trùng) -> tải lại và cho chọn lại
             if (res.StatusCode == 409)
             {
-                await RefreshAvailabilityAsync();
                 _slot = null;
-                _step = 3;
+                if (_date != null) await LoadSlotsAsync(_date);
             }
 
-            _error = message; // giữ thông báo 409 của server, không bị lỗi tải lại ghi đè
+            _error = message;
         }
         catch (Exception)
         {
@@ -376,54 +895,8 @@
         }
     }
 
-    private async Task RefreshAvailabilityAsync()
-    {
-        var res = await Api.GetAsync<List<AvailableDateDto>>(
-            $"api/doctors/{_doctor!.DoctorId}/available-dates?departmentId={_department!.DepartmentId}");
-        if (res.IsSuccess) _dates = res.Data ?? new();
-
-        var current = _date == null ? null : _dates.FirstOrDefault(x => x.Date == _date.Date);
-        if (current != null)
-        {
-            _date = current;
-            await LoadSlotsAsync(current);
-        }
-        else
-        {
-            _date = null;
-            _slots = new();
-        }
-    }
-
-    private void Back()
-    {
-        _error = null;
-
-        switch (_step)
-        {
-            case 2:
-                _step = 1;
-                _department = null;
-                _doctors = new();
-                break;
-            case 3:
-                _step = 2;
-                _doctor = null;
-                _dates = new();
-                _date = null;
-                _slots = new();
-                _slot = null;
-                break;
-            case 4:
-                _step = 3;
-                _slot = null;
-                break;
-        }
-    }
-
     private async Task ResetAsync()
     {
-        _step = 1;
         _error = null;
         _reason = null;
         _department = null;
@@ -434,6 +907,7 @@
         _doctors = new();
         _dates = new();
         _slots = new();
+        _selectedDateString = "";
 
         await LoadDepartmentsAsync();
     }

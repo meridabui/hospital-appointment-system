@@ -1,12 +1,14 @@
 @page "/medical-history"
 @page "/medical-history/{AppointmentId:int}"
 @using HospitalAppointment.Client.Models
+@using HospitalAppointment.Client.Components
 @inject PatientPortalApiService PortalApi
 
 <PageTitle>Lịch sử khám bệnh</PageTitle>
 
 <RoleGuard Role="Patient" OnAuthorized="InitAsync">
-    <div class="container-fluid py-4">
+    <PatientHeader ActiveTab="history" />
+    <div class="container-fluid py-2">
         <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
             <div>
                 <h2 class="fw-bold text-primary mb-1">Lịch sử khám bệnh</h2>

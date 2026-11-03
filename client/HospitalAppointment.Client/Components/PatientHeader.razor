@@ -1,0 +1,267 @@
+@using HospitalAppointment.Client.Core
+@using HospitalAppointment.Client.Services
+@inject AuthSession Session
+@inject NavigationManager Nav
+@inject PatientPortalApiService PortalApi
+
+<div class="patient-header-container">
+    <!-- TOP BAR -->
+    <div class="patient-topbar">
+        <div class="brand-section">
+            <div class="brand-logo">
+                <span>+</span>
+            </div>
+            <div>
+                <h1 class="brand-title">Cổng Đặt Lịch &amp; Hồ Sơ Bệnh Nhân</h1>
+                <p class="brand-subtitle">Hệ thống Y tế &amp; Chăm sóc Sức khỏe Quốc tế &middot; Role: Patient</p>
+            </div>
+        </div>
+
+        <div class="user-chip-container">
+            <div class="user-chip">
+                <div class="user-avatar">
+                    @UserInitial
+                </div>
+                <div class="user-info">
+                    <span class="user-name">@(Session.Current?.FullName ?? "Bệnh nhân")</span>
+                    <span class="user-code">Mã: PAT-@(Session.Current?.UserId.ToString("D4") ?? "0001") &middot; @(Session.Current?.Email ?? "")</span>
+                </div>
+            </div>
+            <button class="logout-btn" @onclick="SignOutAsync" title="Đăng xuất">
+                Đăng xuất
+            </button>
+        </div>
+    </div>
+
+    <!-- TABS BAR -->
+    <div class="patient-tabs">
+        <a href="book-appointment" class="tab-item @(ActiveTab == "book" ? "active" : "")">
+            <span>Đặt Lịch Khám Mới</span>
+        </a>
+
+        <a href="my-appointments" class="tab-item @(ActiveTab == "my-appointments" ? "active" : "")">
+            <span>Lịch Hẹn Của Tôi</span>
+            @if (_count > 0)
+            {
+                <span class="tab-badge">@_count</span>
+            }
+        </a>
+
+        <a href="medical-history" class="tab-item @(ActiveTab == "history" ? "active" : "")">
+            <span>Lịch sử khám bệnh</span>
+        </a>
+    </div>
+</div>
+
+<style>
+    .patient-header-container {
+        background: #ffffff;
+        border-bottom: 1px solid #e2e8f0;
+        margin-bottom: 24px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+    }
+
+    .patient-topbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 16px 32px;
+        border-bottom: 1px solid #f1f5f9;
+        flex-wrap: wrap;
+        gap: 16px;
+    }
+
+    .brand-section {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+    }
+
+    .brand-logo {
+        width: 44px;
+        height: 44px;
+        border-radius: 12px;
+        background: #4f46e5;
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 24px;
+        font-weight: 700;
+        box-shadow: 0 4px 10px rgba(79, 70, 229, 0.25);
+    }
+
+    .brand-title {
+        font-size: 19px;
+        font-weight: 700;
+        color: #0f172a;
+        margin: 0;
+        letter-spacing: -0.3px;
+    }
+
+    .brand-subtitle {
+        font-size: 12.5px;
+        color: #64748b;
+        margin: 2px 0 0 0;
+    }
+
+    .user-chip-container {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .user-chip {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 6px 14px 6px 6px;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 40px;
+    }
+
+    .user-avatar {
+        width: 38px;
+        height: 38px;
+        border-radius: 50%;
+        background: #e0e7ff;
+        color: #4338ca;
+        font-weight: 700;
+        font-size: 14px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .user-info {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .user-name {
+        font-size: 13.5px;
+        font-weight: 700;
+        color: #1e293b;
+        line-height: 1.2;
+    }
+
+    .user-code {
+        font-size: 11px;
+        color: #64748b;
+        margin-top: 2px;
+    }
+
+    .logout-btn {
+        background: transparent;
+        border: 1px solid #cbd5e1;
+        color: #64748b;
+        padding: 7px 14px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: 0.15s;
+    }
+
+    .logout-btn:hover {
+        background: #fee2e2;
+        border-color: #fca5a5;
+        color: #b91c1c;
+    }
+
+    .patient-tabs {
+        display: flex;
+        gap: 32px;
+        padding: 0 32px;
+        overflow-x: auto;
+    }
+
+    .tab-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 16px 4px;
+        font-size: 14px;
+        font-weight: 600;
+        color: #64748b;
+        text-decoration: none;
+        border-bottom: 2.5px solid transparent;
+        transition: 0.15s;
+        white-space: nowrap;
+    }
+
+    .tab-item:hover {
+        color: #2563eb;
+    }
+
+    .tab-item.active {
+        color: #2563eb;
+        border-bottom-color: #2563eb;
+    }
+
+    .tab-badge {
+        background: #2563eb;
+        color: white;
+        font-size: 11px;
+        font-weight: 700;
+        padding: 1px 7px;
+        border-radius: 20px;
+        min-width: 18px;
+        text-align: center;
+    }
+
+    @@media (max-width: 768px) {
+        .patient-topbar {
+            padding: 14px 16px;
+        }
+
+        .patient-tabs {
+            padding: 0 16px;
+            gap: 20px;
+        }
+    }
+</style>
+
+@code {
+    [Parameter] public string ActiveTab { get; set; } = "book";
+    [Parameter] public int? ActiveAppointmentCount { get; set; }
+
+    private int _count;
+
+    private string UserInitial =>
+        string.IsNullOrWhiteSpace(Session.Current?.FullName)
+            ? "P"
+            : string.Join("", Session.Current!.FullName.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries)
+                .Select(w => w[0].ToString().ToUpperInvariant())
+                .TakeLast(2));
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (ActiveAppointmentCount.HasValue)
+        {
+            _count = ActiveAppointmentCount.Value;
+        }
+        else
+        {
+            try
+            {
+                var res = await PortalApi.GetMyAppointmentsAsync();
+                if (res.IsSuccess && res.Data != null)
+                {
+                    _count = res.Data.Count(a => a.Status == "Pending" || a.Status == "Confirmed");
+                }
+            }
+            catch
+            {
+                _count = 0;
+            }
+        }
+    }
+
+    private async Task SignOutAsync()
+    {
+        await Session.SignOutAsync();
+        Nav.NavigateTo("/login", true);
+    }
+}
