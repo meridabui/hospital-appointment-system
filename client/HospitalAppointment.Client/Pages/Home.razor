@@ -1,7 +1,1250 @@
-﻿@page "/"
+@page "/"
+@inject AuthSession Session
+@inject NavigationManager Nav
 
-<PageTitle>Home</PageTitle>
+@if (_loading)
+{
+    return;
+}
 
-<h1>Hello, world!</h1>
+@if (Session.IsAuthenticated)
+{
+    <PageTitle>Dashboard</PageTitle>
+    <div class="home-authenticated">
+        <div class="welcome-card fade-in-up">
+            <div class="welcome-icon">👋</div>
+            <h2>Xin chào, @Session.Current!.FullName!</h2>
+            <p>Chào mừng bạn quay trở lại hệ thống đặt lịch khám bệnh.</p>
+            <p class="role-badge">@RoleLabel</p>
+        </div>
+    </div>
+}
+else
+{
+    <PageTitle>Hospital Appointment System</PageTitle>
 
-Welcome to your new app.
+    <div class="landing">
+
+        <!-- NAVBAR -->
+        <nav class="landing-nav fade-in-down">
+            <div class="nav-container">
+                <a class="nav-brand" href="/">
+                    <div class="nav-brand-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                            <rect x="3" y="3" width="18" height="18" rx="4" fill="white" fill-opacity="0.2"/>
+                            <path d="M12 7V17M7 12H17" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <strong>Hospital</strong>
+                        <span>Appointment System</span>
+                    </div>
+                </a>
+                <div class="nav-links">
+                    <a href="#features">Tính năng</a>
+                    <a href="#stats">Thống kê</a>
+                    <a href="#about">Về chúng tôi</a>
+                    <a href="login" class="nav-btn nav-btn-outline">Đăng nhập</a>
+                    <a href="register" class="nav-btn nav-btn-solid">Đăng ký</a>
+                </div>
+            </div>
+        </nav>
+
+        <!-- HERO -->
+        <section class="hero">
+            <div class="hero-bg">
+                <div class="blob blob-1"></div>
+                <div class="blob blob-2"></div>
+                <div class="blob blob-3"></div>
+            </div>
+
+            <div class="hero-container">
+                <div class="hero-content fade-in-up">
+                    <div class="hero-badge">
+                        <span class="badge-dot"></span>
+                        Nền tảng y tế số #1 Việt Nam
+                    </div>
+                    <h1>
+                        Đặt lịch khám bệnh<br/>
+                        <span class="gradient-text">Nhanh chóng &amp; Tiện lợi</span>
+                    </h1>
+                    <p class="hero-desc">
+                        Hệ thống quản lý lịch hẹn bệnh viện hiện đại, giúp bạn đặt lịch khám
+                        chỉ trong vài bước đơn giản. Tiết kiệm thời gian, nâng cao trải nghiệm chăm sóc sức khỏe.
+                    </p>
+                    <div class="hero-actions">
+                        <a href="register" class="btn-hero btn-hero-primary">
+                            <span>Bắt đầu ngay</span>
+                            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                                <path d="M4 10H16M16 10L11 5M16 10L11 15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                        </a>
+                        <a href="#features" class="btn-hero btn-hero-secondary">Tìm hiểu thêm</a>
+                    </div>
+                </div>
+
+                <div class="hero-visual fade-in-up delay-200">
+                    <div class="hero-card-stack">
+                        <div class="float-card card-1">
+                            <div class="fc-icon fc-blue">📅</div>
+                            <div>
+                                <strong>Lịch hẹn hôm nay</strong>
+                                <span>3 bệnh nhân đang chờ</span>
+                            </div>
+                        </div>
+                        <div class="float-card card-2">
+                            <div class="fc-icon fc-green">✓</div>
+                            <div>
+                                <strong>Xác nhận thành công</strong>
+                                <span>Nguyễn Văn A — 09:30</span>
+                            </div>
+                        </div>
+                        <div class="float-card card-3">
+                            <div class="fc-icon fc-purple">🏥</div>
+                            <div>
+                                <strong>Khoa Nội tổng quát</strong>
+                                <span>BS. Trần Thị B</span>
+                            </div>
+                        </div>
+                        <div class="float-card card-4">
+                            <div class="fc-icon fc-orange">⏱</div>
+                            <div>
+                                <strong>Thời gian chờ</strong>
+                                <span>~15 phút</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- FEATURES -->
+        <section class="features" id="features">
+            <div class="section-container">
+                <div class="section-header fade-in-up">
+                    <span class="section-tag">Tính năng nổi bật</span>
+                    <h2>Mọi thứ bạn cần cho<br/><span class="gradient-text">trải nghiệm khám bệnh tốt nhất</span></h2>
+                    <p>Hệ thống tích hợp đầy đủ tính năng, phục vụ mọi nhu cầu từ bệnh nhân đến bác sĩ.</p>
+                </div>
+
+                <div class="features-grid">
+                    <div class="feature-card fade-in-up delay-100">
+                        <div class="feature-icon fi-blue">
+                            <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+                                <rect x="3" y="4" width="18" height="18" rx="3" stroke="currentColor" stroke-width="2"/>
+                                <path d="M3 10H21M8 2V6M16 2V6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                            </svg>
+                        </div>
+                        <h3>Đặt lịch trực tuyến</h3>
+                        <p>Đặt lịch khám bệnh 24/7, chọn bác sĩ và khung giờ phù hợp chỉ với vài cú nhấp chuột.</p>
+                    </div>
+
+                    <div class="feature-card fade-in-up delay-200">
+                        <div class="feature-icon fi-green">
+                            <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+                                <path d="M9 12L11 14L15 10M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                        </div>
+                        <h3>Xác nhận tự động</h3>
+                        <p>Nhận thông báo xác nhận lịch hẹn ngay lập tức qua hệ thống, đảm bảo không bỏ lỡ.</p>
+                    </div>
+
+                    <div class="feature-card fade-in-up delay-300">
+                        <div class="feature-icon fi-purple">
+                            <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+                                <path d="M16 7C16 9.20914 14.2091 11 12 11C9.79086 11 8 9.20914 8 7C8 4.79086 9.79086 3 12 3C14.2091 3 16 4.79086 16 7Z" stroke="currentColor" stroke-width="2"/>
+                                <path d="M12 14C8.13401 14 5 17.134 5 21H19C19 17.134 15.866 14 12 14Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                        </div>
+                        <h3>Quản lý bệnh nhân</h3>
+                        <p>Hồ sơ bệnh nhân được lưu trữ an toàn, tra cứu lịch sử khám bệnh mọi lúc, mọi nơi.</p>
+                    </div>
+
+                    <div class="feature-card fade-in-up delay-100">
+                        <div class="feature-icon fi-orange">
+                            <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+                                <path d="M9 5H7C5.89543 5 5 5.89543 5 7V19C5 20.1046 5.89543 21 7 21H17C18.1046 21 19 20.1046 19 19V7C19 5.89543 18.1046 5 17 5H15M9 5C9 6.10457 9.89543 7 11 7H13C14.1046 7 15 6.10457 15 5M9 5C9 3.89543 9.89543 3 11 3H13C14.1046 3 15 3.89543 15 5M12 12H15M12 16H15M9 12H9.01M9 16H9.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                            </svg>
+                        </div>
+                        <h3>Hồ sơ y tế điện tử</h3>
+                        <p>Số hóa toàn bộ hồ sơ bệnh án, kết quả xét nghiệm và đơn thuốc trên một nền tảng.</p>
+                    </div>
+
+                    <div class="feature-card fade-in-up delay-200">
+                        <div class="feature-icon fi-red">
+                            <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+                                <path d="M12 8V12L15 15M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                        </div>
+                        <h3>Tiết kiệm thời gian</h3>
+                        <p>Giảm thiểu thời gian chờ đợi, quy trình được tối ưu hóa cho trải nghiệm nhanh nhất.</p>
+                    </div>
+
+                    <div class="feature-card fade-in-up delay-300">
+                        <div class="feature-icon fi-teal">
+                            <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+                                <path d="M12 15V17M6 21H18C19.1046 21 20 20.1046 20 19V13C20 11.8954 19.1046 11 18 11H6C4.89543 11 4 11.8954 4 13V19C4 20.1046 4.89543 21 6 21ZM16 11V7C16 4.79086 14.2091 3 12 3C9.79086 3 8 4.79086 8 7V11H16Z" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                            </svg>
+                        </div>
+                        <h3>Bảo mật tuyệt đối</h3>
+                        <p>Dữ liệu y tế được mã hóa và bảo vệ theo tiêu chuẩn cao nhất, đảm bảo quyền riêng tư.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- STATS -->
+        <section class="stats" id="stats">
+            <div class="section-container">
+                <div class="stats-grid">
+                    <div class="stat-item fade-in-up delay-100">
+                        <div class="stat-number">10,000+</div>
+                        <div class="stat-label">Bệnh nhân tin tưởng</div>
+                    </div>
+                    <div class="stat-item fade-in-up delay-200">
+                        <div class="stat-number">50+</div>
+                        <div class="stat-label">Bác sĩ chuyên khoa</div>
+                    </div>
+                    <div class="stat-item fade-in-up delay-300">
+                        <div class="stat-number">15+</div>
+                        <div class="stat-label">Chuyên khoa</div>
+                    </div>
+                    <div class="stat-item fade-in-up delay-400">
+                        <div class="stat-number">98%</div>
+                        <div class="stat-label">Hài lòng dịch vụ</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- HOW IT WORKS -->
+        <section class="how-it-works" id="about">
+            <div class="section-container">
+                <div class="section-header fade-in-up">
+                    <span class="section-tag">Quy trình đơn giản</span>
+                    <h2>Chỉ <span class="gradient-text">3 bước</span> để đặt lịch khám</h2>
+                    <p>Quy trình đặt lịch được đơn giản hóa tối đa, ai cũng có thể sử dụng.</p>
+                </div>
+
+                <div class="steps-grid">
+                    <div class="step-card fade-in-up delay-100">
+                        <div class="step-number">01</div>
+                        <div class="step-icon">📝</div>
+                        <h3>Đăng ký tài khoản</h3>
+                        <p>Tạo tài khoản miễn phí chỉ trong 1 phút với thông tin cơ bản.</p>
+                    </div>
+                    <div class="step-connector fade-in-up delay-150">
+                        <svg width="40" height="2" viewBox="0 0 40 2"><line x1="0" y1="1" x2="40" y2="1" stroke="#cbd5e1" stroke-width="2" stroke-dasharray="6 4"/></svg>
+                    </div>
+                    <div class="step-card fade-in-up delay-200">
+                        <div class="step-number">02</div>
+                        <div class="step-icon">🔍</div>
+                        <h3>Chọn dịch vụ &amp; bác sĩ</h3>
+                        <p>Duyệt danh sách chuyên khoa, chọn bác sĩ và khung giờ phù hợp.</p>
+                    </div>
+                    <div class="step-connector fade-in-up delay-250">
+                        <svg width="40" height="2" viewBox="0 0 40 2"><line x1="0" y1="1" x2="40" y2="1" stroke="#cbd5e1" stroke-width="2" stroke-dasharray="6 4"/></svg>
+                    </div>
+                    <div class="step-card fade-in-up delay-300">
+                        <div class="step-number">03</div>
+                        <div class="step-icon">✅</div>
+                        <h3>Xác nhận &amp; đến khám</h3>
+                        <p>Nhận xác nhận lịch hẹn và đến bệnh viện đúng giờ đã đặt.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- CTA -->
+        <section class="cta">
+            <div class="section-container">
+                <div class="cta-card fade-in-up">
+                    <div class="cta-bg">
+                        <div class="cta-blob cta-blob-1"></div>
+                        <div class="cta-blob cta-blob-2"></div>
+                    </div>
+                    <div class="cta-content">
+                        <h2>Sẵn sàng trải nghiệm?</h2>
+                        <p>Đăng ký ngay hôm nay để trải nghiệm hệ thống đặt lịch khám bệnh hiện đại nhất.</p>
+                        <div class="cta-actions">
+                            <a href="register" class="btn-hero btn-hero-white">
+                                Tạo tài khoản miễn phí
+                                <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                                    <path d="M4 10H16M16 10L11 5M16 10L11 15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                            </a>
+                            <a href="login" class="btn-hero btn-hero-ghost">Đã có tài khoản? Đăng nhập</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- FOOTER -->
+        <footer class="landing-footer">
+            <div class="section-container">
+                <div class="footer-grid">
+                    <div class="footer-brand">
+                        <div class="footer-logo">
+                            <div class="nav-brand-icon">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                                    <rect x="3" y="3" width="18" height="18" rx="4" fill="white" fill-opacity="0.2"/>
+                                    <path d="M12 7V17M7 12H17" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+                                </svg>
+                            </div>
+                            <strong>Hospital Appointment</strong>
+                        </div>
+                        <p>Hệ thống quản lý lịch hẹn bệnh viện hiện đại, được thiết kế để nâng cao trải nghiệm chăm sóc sức khỏe.</p>
+                    </div>
+                    <div class="footer-links">
+                        <h4>Dịch vụ</h4>
+                        <a href="#features">Đặt lịch khám</a>
+                        <a href="#features">Hồ sơ bệnh án</a>
+                        <a href="#features">Tra cứu kết quả</a>
+                    </div>
+                    <div class="footer-links">
+                        <h4>Hỗ trợ</h4>
+                        <a href="#about">Về chúng tôi</a>
+                        <a href="#about">Liên hệ</a>
+                        <a href="#about">FAQ</a>
+                    </div>
+                </div>
+                <div class="footer-bottom">
+                    <span>© 2024 Hospital Appointment System. All rights reserved.</span>
+                </div>
+            </div>
+        </footer>
+
+    </div>
+}
+
+<style>
+    /* ==========================================
+       KEYFRAMES
+       ========================================== */
+    @@keyframes fadeInUp {
+        from { opacity: 0; transform: translateY(32px); }
+        to   { opacity: 1; transform: translateY(0); }
+    }
+    @@keyframes fadeInDown {
+        from { opacity: 0; transform: translateY(-24px); }
+        to   { opacity: 1; transform: translateY(0); }
+    }
+    @@keyframes floatCard {
+        0%, 100% { transform: translateY(0); }
+        50%      { transform: translateY(-12px); }
+    }
+    @@keyframes floatCardSlow {
+        0%, 100% { transform: translateY(0) rotate(0deg); }
+        50%      { transform: translateY(-18px) rotate(2deg); }
+    }
+    @@keyframes blobMove {
+        0%, 100% { transform: translate(0, 0) scale(1); }
+        33%      { transform: translate(30px, -40px) scale(1.05); }
+        66%      { transform: translate(-20px, 20px) scale(0.95); }
+    }
+    @@keyframes pulseDot {
+        0%, 100% { opacity: 1; transform: scale(1); }
+        50%      { opacity: .5; transform: scale(1.5); }
+    }
+    @@keyframes shimmer {
+        0%   { background-position: -200% center; }
+        100% { background-position: 200% center; }
+    }
+
+    /* ==========================================
+       ANIMATION UTILITIES
+       ========================================== */
+    .fade-in-up {
+        opacity: 0;
+        animation: fadeInUp .7s ease-out forwards;
+    }
+    .fade-in-down {
+        opacity: 0;
+        animation: fadeInDown .6s ease-out forwards;
+    }
+    .delay-100 { animation-delay: .1s; }
+    .delay-150 { animation-delay: .15s; }
+    .delay-200 { animation-delay: .2s; }
+    .delay-250 { animation-delay: .25s; }
+    .delay-300 { animation-delay: .3s; }
+    .delay-400 { animation-delay: .4s; }
+
+    /* ==========================================
+       LANDING WRAPPER
+       ========================================== */
+    .landing {
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        color: #1e293b;
+        line-height: 1.6;
+        overflow-x: hidden;
+    }
+
+    .section-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 0 24px;
+    }
+
+    .gradient-text {
+        background: linear-gradient(135deg, #2563eb, #8b5cf6, #3b82f6);
+        background-size: 200% auto;
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        animation: shimmer 4s linear infinite;
+    }
+
+    /* ==========================================
+       NAVBAR
+       ========================================== */
+    .landing-nav {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 100;
+        background: rgba(15, 23, 42, .88);
+        backdrop-filter: blur(16px) saturate(180%);
+        -webkit-backdrop-filter: blur(16px) saturate(180%);
+        border-bottom: 1px solid rgba(255,255,255,.08);
+    }
+
+    .nav-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 0 24px;
+        height: 72px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .nav-brand {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        text-decoration: none;
+        color: white;
+    }
+
+    .nav-brand-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 10px;
+        background: linear-gradient(135deg, #2563eb, #8b5cf6);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+
+    .nav-brand strong {
+        font-size: 18px;
+        display: block;
+        line-height: 1.2;
+    }
+
+    .nav-brand span {
+        font-size: 11px;
+        color: #94a3b8;
+        display: block;
+    }
+
+    .nav-links {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .nav-links > a:not(.nav-btn) {
+        color: #cbd5e1;
+        text-decoration: none;
+        padding: 8px 16px;
+        font-size: 14px;
+        border-radius: 8px;
+        transition: all .2s;
+    }
+
+    .nav-links > a:not(.nav-btn):hover {
+        color: white;
+        background: rgba(255,255,255,.08);
+    }
+
+    .nav-btn {
+        padding: 9px 20px;
+        border-radius: 10px;
+        font-size: 14px;
+        font-weight: 600;
+        text-decoration: none;
+        transition: all .25s;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .nav-btn-outline {
+        color: #cbd5e1;
+        border: 1px solid rgba(255,255,255,.2);
+    }
+
+    .nav-btn-outline:hover {
+        color: white;
+        border-color: rgba(255,255,255,.4);
+        background: rgba(255,255,255,.06);
+    }
+
+    .nav-btn-solid {
+        color: white;
+        background: linear-gradient(135deg, #2563eb, #1d4ed8);
+        border: 1px solid transparent;
+        box-shadow: 0 4px 12px rgba(37,99,235,.35);
+    }
+
+    .nav-btn-solid:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 6px 20px rgba(37,99,235,.45);
+    }
+
+    /* ==========================================
+       HERO
+       ========================================== */
+    .hero {
+        position: relative;
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        background: linear-gradient(160deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
+        padding: 120px 0 80px;
+        overflow: hidden;
+    }
+
+    .hero-bg {
+        position: absolute;
+        inset: 0;
+        overflow: hidden;
+        pointer-events: none;
+    }
+
+    .blob {
+        position: absolute;
+        border-radius: 50%;
+        filter: blur(80px);
+        opacity: .3;
+        animation: blobMove 12s ease-in-out infinite;
+    }
+
+    .blob-1 {
+        width: 500px; height: 500px;
+        background: #2563eb;
+        top: -100px; right: -100px;
+    }
+
+    .blob-2 {
+        width: 400px; height: 400px;
+        background: #8b5cf6;
+        bottom: -50px; left: -50px;
+        animation-delay: -4s;
+    }
+
+    .blob-3 {
+        width: 300px; height: 300px;
+        background: #14b8a6;
+        top: 50%; left: 50%;
+        animation-delay: -8s;
+    }
+
+    .hero-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 0 24px;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 60px;
+        align-items: center;
+        position: relative;
+        z-index: 2;
+    }
+
+    .hero-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 16px 6px 10px;
+        background: rgba(37,99,235,.15);
+        border: 1px solid rgba(37,99,235,.3);
+        border-radius: 100px;
+        color: #93c5fd;
+        font-size: 13px;
+        font-weight: 500;
+        margin-bottom: 24px;
+    }
+
+    .badge-dot {
+        width: 8px; height: 8px;
+        border-radius: 50%;
+        background: #10b981;
+        animation: pulseDot 2s ease-in-out infinite;
+    }
+
+    .hero-content h1 {
+        font-size: clamp(36px, 5vw, 56px);
+        font-weight: 800;
+        line-height: 1.1;
+        color: white;
+        margin: 0 0 24px;
+        letter-spacing: -0.02em;
+    }
+
+    .hero-desc {
+        font-size: 18px;
+        color: #94a3b8;
+        max-width: 520px;
+        margin: 0 0 36px;
+        line-height: 1.7;
+    }
+
+    .hero-actions {
+        display: flex;
+        gap: 16px;
+        flex-wrap: wrap;
+    }
+
+    /* ==========================================
+       BUTTONS
+       ========================================== */
+    .btn-hero {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 14px 28px;
+        border-radius: 12px;
+        font-size: 16px;
+        font-weight: 600;
+        text-decoration: none;
+        transition: all .3s cubic-bezier(.4,0,.2,1);
+        cursor: pointer;
+        border: none;
+    }
+
+    .btn-hero-primary {
+        color: white;
+        background: linear-gradient(135deg, #2563eb, #8b5cf6);
+        box-shadow: 0 8px 24px rgba(37,99,235,.35), inset 0 1px 0 rgba(255,255,255,.15);
+    }
+
+    .btn-hero-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 12px 32px rgba(37,99,235,.45), inset 0 1px 0 rgba(255,255,255,.15);
+    }
+
+    .btn-hero-secondary {
+        color: #cbd5e1;
+        background: rgba(255,255,255,.06);
+        border: 1px solid rgba(255,255,255,.12);
+    }
+
+    .btn-hero-secondary:hover {
+        color: white;
+        background: rgba(255,255,255,.1);
+        border-color: rgba(255,255,255,.2);
+    }
+
+    .btn-hero-white {
+        color: #2563eb;
+        background: white;
+        box-shadow: 0 4px 16px rgba(0,0,0,.1);
+    }
+
+    .btn-hero-white:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 24px rgba(0,0,0,.15);
+    }
+
+    .btn-hero-ghost {
+        color: white;
+        background: rgba(255,255,255,.12);
+        border: 1px solid rgba(255,255,255,.25);
+    }
+
+    .btn-hero-ghost:hover {
+        background: rgba(255,255,255,.2);
+    }
+
+    /* ==========================================
+       HERO FLOATING CARDS
+       ========================================== */
+    .hero-visual {
+        position: relative;
+        height: 420px;
+    }
+
+    .hero-card-stack {
+        position: relative;
+        width: 100%;
+        height: 100%;
+    }
+
+    .float-card {
+        position: absolute;
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 16px 20px;
+        background: rgba(255,255,255,.07);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        border: 1px solid rgba(255,255,255,.12);
+        border-radius: 16px;
+        color: white;
+        min-width: 260px;
+        box-shadow: 0 8px 32px rgba(0,0,0,.2);
+        transition: transform .3s;
+    }
+
+    .float-card:hover {
+        transform: scale(1.04) !important;
+    }
+
+    .float-card strong {
+        display: block;
+        font-size: 14px;
+        margin-bottom: 2px;
+    }
+
+    .float-card span {
+        font-size: 12px;
+        color: #94a3b8;
+    }
+
+    .fc-icon {
+        width: 44px; height: 44px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 20px;
+        flex-shrink: 0;
+    }
+
+    .fc-blue   { background: rgba(37,99,235,.2); }
+    .fc-green  { background: rgba(16,185,129,.2); }
+    .fc-purple { background: rgba(139,92,246,.2); }
+    .fc-orange { background: rgba(245,158,11,.2); }
+
+    .card-1 { top: 10%;  left: 5%;   animation: floatCard 5s ease-in-out infinite; }
+    .card-2 { top: 0;    right: 0;   animation: floatCardSlow 6s ease-in-out infinite; animation-delay: -1.5s; }
+    .card-3 { bottom: 25%; left: 10%; animation: floatCardSlow 7s ease-in-out infinite; animation-delay: -3s; }
+    .card-4 { bottom: 5%;  right: 5%; animation: floatCard 5.5s ease-in-out infinite; animation-delay: -2s; }
+
+    /* ==========================================
+       FEATURES
+       ========================================== */
+    .features {
+        padding: 120px 0;
+        background: #f8fafc;
+    }
+
+    .section-header {
+        text-align: center;
+        max-width: 640px;
+        margin: 0 auto 64px;
+    }
+
+    .section-tag {
+        display: inline-block;
+        padding: 6px 16px;
+        background: #eff6ff;
+        color: #2563eb;
+        border-radius: 100px;
+        font-size: 13px;
+        font-weight: 600;
+        margin-bottom: 16px;
+        letter-spacing: .5px;
+    }
+
+    .section-header h2 {
+        font-size: clamp(28px, 3.5vw, 40px);
+        font-weight: 800;
+        line-height: 1.2;
+        color: #0f172a;
+        margin: 0 0 16px;
+        letter-spacing: -.01em;
+    }
+
+    .section-header p {
+        font-size: 17px;
+        color: #64748b;
+        margin: 0;
+    }
+
+    .features-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 24px;
+    }
+
+    .feature-card {
+        background: white;
+        border-radius: 20px;
+        padding: 32px 28px;
+        border: 1px solid #e2e8f0;
+        transition: all .35s cubic-bezier(.4,0,.2,1);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .feature-card::before {
+        content: '';
+        position: absolute;
+        top: 0; left: 0; right: 0;
+        height: 3px;
+        background: linear-gradient(90deg, #2563eb, #8b5cf6);
+        transform: scaleX(0);
+        transition: transform .35s;
+        transform-origin: left;
+    }
+
+    .feature-card:hover {
+        transform: translateY(-6px);
+        box-shadow: 0 20px 40px -12px rgba(0,0,0,.12);
+        border-color: transparent;
+    }
+
+    .feature-card:hover::before {
+        transform: scaleX(1);
+    }
+
+    .feature-icon {
+        width: 56px; height: 56px;
+        border-radius: 14px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 20px;
+        transition: transform .3s;
+    }
+
+    .feature-card:hover .feature-icon {
+        transform: scale(1.1) rotate(-3deg);
+    }
+
+    .fi-blue   { background: #eff6ff; color: #2563eb; }
+    .fi-green  { background: #ecfdf5; color: #10b981; }
+    .fi-purple { background: #f5f3ff; color: #8b5cf6; }
+    .fi-orange { background: #fffbeb; color: #f59e0b; }
+    .fi-red    { background: #fef2f2; color: #ef4444; }
+    .fi-teal   { background: #f0fdfa; color: #14b8a6; }
+
+    .feature-card h3 {
+        font-size: 18px;
+        font-weight: 700;
+        color: #0f172a;
+        margin: 0 0 10px;
+    }
+
+    .feature-card p {
+        font-size: 14px;
+        color: #64748b;
+        margin: 0;
+        line-height: 1.65;
+    }
+
+    /* ==========================================
+       STATS
+       ========================================== */
+    .stats {
+        padding: 80px 0;
+        background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+    }
+
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 32px;
+    }
+
+    .stat-item {
+        text-align: center;
+        padding: 32px 16px;
+        border-radius: 20px;
+        background: rgba(255,255,255,.04);
+        border: 1px solid rgba(255,255,255,.08);
+        transition: all .3s;
+    }
+
+    .stat-item:hover {
+        background: rgba(255,255,255,.08);
+        transform: translateY(-4px);
+    }
+
+    .stat-number {
+        font-size: clamp(32px, 4vw, 48px);
+        font-weight: 800;
+        background: linear-gradient(135deg, #60a5fa, #a78bfa);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        margin-bottom: 8px;
+    }
+
+    .stat-label {
+        font-size: 14px;
+        color: #94a3b8;
+        font-weight: 500;
+    }
+
+    /* ==========================================
+       HOW IT WORKS
+       ========================================== */
+    .how-it-works {
+        padding: 120px 0;
+        background: white;
+    }
+
+    .steps-grid {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 16px;
+    }
+
+    .step-card {
+        flex: 1;
+        max-width: 320px;
+        text-align: center;
+        padding: 40px 28px;
+        border-radius: 20px;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        position: relative;
+        transition: all .35s;
+    }
+
+    .step-card:hover {
+        transform: translateY(-6px);
+        box-shadow: 0 20px 40px -12px rgba(0,0,0,.12);
+        background: white;
+    }
+
+    .step-number {
+        font-size: 48px;
+        font-weight: 900;
+        color: #f1f5f9;
+        position: absolute;
+        top: 16px; right: 24px;
+        line-height: 1;
+    }
+
+    .step-icon {
+        font-size: 40px;
+        margin-bottom: 20px;
+    }
+
+    .step-card h3 {
+        font-size: 18px;
+        font-weight: 700;
+        color: #0f172a;
+        margin: 0 0 10px;
+    }
+
+    .step-card p {
+        font-size: 14px;
+        color: #64748b;
+        margin: 0;
+        line-height: 1.65;
+    }
+
+    .step-connector {
+        display: flex;
+        align-items: center;
+        flex-shrink: 0;
+    }
+
+    /* ==========================================
+       CTA
+       ========================================== */
+    .cta {
+        padding: 80px 0 120px;
+        background: #f8fafc;
+    }
+
+    .cta-card {
+        position: relative;
+        padding: 72px 48px;
+        border-radius: 24px;
+        background: linear-gradient(135deg, #2563eb, #1d4ed8, #8b5cf6);
+        overflow: hidden;
+        text-align: center;
+    }
+
+    .cta-bg {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        overflow: hidden;
+    }
+
+    .cta-blob {
+        position: absolute;
+        border-radius: 50%;
+        opacity: .2;
+    }
+
+    .cta-blob-1 {
+        width: 300px; height: 300px;
+        background: white;
+        top: -80px; right: -60px;
+        filter: blur(60px);
+    }
+
+    .cta-blob-2 {
+        width: 200px; height: 200px;
+        background: #14b8a6;
+        bottom: -60px; left: -40px;
+        filter: blur(50px);
+    }
+
+    .cta-content {
+        position: relative;
+        z-index: 2;
+    }
+
+    .cta-content h2 {
+        font-size: clamp(28px, 3.5vw, 40px);
+        font-weight: 800;
+        color: white;
+        margin: 0 0 16px;
+    }
+
+    .cta-content p {
+        font-size: 18px;
+        color: rgba(255,255,255,.8);
+        margin: 0 auto 36px;
+        max-width: 540px;
+    }
+
+    .cta-actions {
+        display: flex;
+        gap: 16px;
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+
+    /* ==========================================
+       FOOTER
+       ========================================== */
+    .landing-footer {
+        background: #0f172a;
+        padding: 64px 0 0;
+        color: #94a3b8;
+    }
+
+    .footer-grid {
+        display: grid;
+        grid-template-columns: 2fr 1fr 1fr;
+        gap: 48px;
+        padding-bottom: 48px;
+        border-bottom: 1px solid rgba(255,255,255,.08);
+    }
+
+    .footer-logo {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 16px;
+    }
+
+    .footer-logo strong {
+        color: white;
+        font-size: 16px;
+    }
+
+    .footer-brand p {
+        font-size: 14px;
+        line-height: 1.7;
+        margin: 0;
+        max-width: 320px;
+    }
+
+    .footer-links h4 {
+        color: white;
+        font-size: 14px;
+        font-weight: 700;
+        margin: 0 0 16px;
+        letter-spacing: .5px;
+    }
+
+    .footer-links a {
+        display: block;
+        color: #94a3b8;
+        text-decoration: none;
+        font-size: 14px;
+        padding: 5px 0;
+        transition: color .2s;
+    }
+
+    .footer-links a:hover {
+        color: white;
+    }
+
+    .footer-bottom {
+        padding: 24px 0;
+        text-align: center;
+        font-size: 13px;
+    }
+
+    /* ==========================================
+       AUTHENTICATED HOME
+       ========================================== */
+    .home-authenticated {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 60vh;
+        padding: 40px 24px;
+    }
+
+    .welcome-card {
+        text-align: center;
+        padding: 60px 48px;
+        background: white;
+        border-radius: 24px;
+        box-shadow: 0 20px 40px -12px rgba(0,0,0,.12);
+        max-width: 520px;
+        width: 100%;
+    }
+
+    .welcome-icon {
+        font-size: 48px;
+        margin-bottom: 16px;
+    }
+
+    .welcome-card h2 {
+        font-size: 28px;
+        font-weight: 800;
+        color: #0f172a;
+        margin: 0 0 12px;
+    }
+
+    .welcome-card p {
+        color: #64748b;
+        margin: 0 0 8px;
+        font-size: 16px;
+    }
+
+    .role-badge {
+        display: inline-block;
+        padding: 6px 18px;
+        background: #eff6ff;
+        color: #2563eb;
+        border-radius: 100px;
+        font-size: 13px;
+        font-weight: 600;
+        margin-top: 8px;
+    }
+
+    /* ==========================================
+       RESPONSIVE
+       ========================================== */
+    @@media (max-width: 1024px) {
+        .hero-container {
+            grid-template-columns: 1fr;
+            text-align: center;
+        }
+        .hero-desc {
+            margin-left: auto;
+            margin-right: auto;
+        }
+        .hero-actions {
+            justify-content: center;
+        }
+        .hero-visual {
+            height: 340px;
+            margin-top: 20px;
+        }
+        .features-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+        .stats-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+        .footer-grid {
+            grid-template-columns: 1fr 1fr;
+        }
+    }
+
+    @@media (max-width: 768px) {
+        .nav-links > a:not(.nav-btn) {
+            display: none;
+        }
+        .features-grid {
+            grid-template-columns: 1fr;
+        }
+        .steps-grid {
+            flex-direction: column;
+        }
+        .step-connector {
+            transform: rotate(90deg);
+        }
+        .stats-grid {
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+        }
+        .footer-grid {
+            grid-template-columns: 1fr;
+            gap: 32px;
+        }
+        .cta-card {
+            padding: 48px 24px;
+        }
+        .hero-visual {
+            height: 300px;
+        }
+        .float-card {
+            min-width: 220px;
+            padding: 12px 16px;
+        }
+    }
+
+    @@media (max-width: 480px) {
+        .hero-visual {
+            display: none;
+        }
+        .hero {
+            min-height: auto;
+            padding: 120px 0 80px;
+        }
+        .stats-grid {
+            grid-template-columns: 1fr 1fr;
+        }
+        .nav-links {
+            gap: 4px;
+        }
+        .nav-btn {
+            padding: 7px 14px;
+            font-size: 13px;
+        }
+    }
+</style>
+
+@code {
+    private bool _loading = true;
+
+    private string RoleLabel => Session.Current?.Role switch
+    {
+        "Patient"               => "Bệnh nhân",
+        "Doctor"                => "Bác sĩ",
+        "Nurse"                 => "Điều dưỡng",
+        "Receptionist"          => "Lễ tân",
+        "MedicalServiceManager" => "Quản lý dịch vụ",
+        "SchedulingManager"     => "Quản lý lịch trình",
+        _                       => Session.Current?.Role ?? ""
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Session.InitializeAsync();
+        _loading = false;
+    }
+}

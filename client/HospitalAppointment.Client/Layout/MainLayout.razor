@@ -3,47 +3,78 @@
 @inject AuthSession Session
 @inject NavigationManager Nav
 
-<div class="app-layout">
+@if (_isLandingPage && !Session.IsAuthenticated)
+{
+    <!-- Full-width layout for landing page -->
+    <div class="landing-layout">
+        @Body
+    </div>
+}
+else
+{
+    <div class="app-layout">
 
-    <aside class="app-sidebar">
-        <NavMenu />
-    </aside>
+        <aside class="app-sidebar">
+            <NavMenu />
+        </aside>
 
-    <main class="app-main">
-        <div class="app-topbar">
-            <span>Hospital Appointment Management System</span>
+        <main class="app-main">
+            <div class="app-topbar">
+                <span>Hospital Appointment Management System</span>
 
-            <div class="app-topbar-actions">
-                @if (Session.IsAuthenticated)
-                {
-                    if (Session.IsInRole("Patient"))
+                <div class="app-topbar-actions">
+                    @if (Session.IsAuthenticated)
                     {
-                        <NavLink href="book-appointment">Đặt lịch khám</NavLink>
+                        if (Session.IsInRole("Patient"))
+                        {
+                            <NavLink href="book-appointment">Đặt lịch khám</NavLink>
+                        }
+
+                        <a href="#" @onclick="SignOutAsync" @onclick:preventDefault>
+                            Đăng xuất (@Session.Current!.FullName)
+                        </a>
                     }
-
-                    <a href="#" @onclick="SignOutAsync" @onclick:preventDefault>
-                        Đăng xuất (@Session.Current!.FullName)
-                    </a>
-                }
-                else
-                {
-                    <NavLink href="login">Đăng nhập</NavLink>
-                    <NavLink href="register">Đăng ký</NavLink>
-                }
+                    else
+                    {
+                        <NavLink href="login">Đăng nhập</NavLink>
+                        <NavLink href="register">Đăng ký</NavLink>
+                    }
+                </div>
             </div>
-        </div>
 
-        <div class="app-content">
-            @Body
-        </div>
-    </main>
-</div>
+            <div class="app-content">
+                @Body
+            </div>
+        </main>
+    </div>
+}
 
 @code {
+    private bool _isLandingPage;
+
     protected override async Task OnInitializedAsync()
     {
         Session.Changed += OnSessionChanged;
+        Nav.LocationChanged += OnLocationChanged;
+        UpdateIsLandingPage();
         await Session.InitializeAsync();
+    }
+
+    protected override void OnParametersSet()
+    {
+        UpdateIsLandingPage();
+    }
+
+    private void UpdateIsLandingPage()
+    {
+        var uri = new Uri(Nav.Uri);
+        _isLandingPage = uri.AbsolutePath == "/" || uri.AbsolutePath == "";
+    }
+
+    private void OnLocationChanged(object? sender, Microsoft.AspNetCore.Components.Routing.LocationChangedEventArgs e)
+    {
+        UpdateIsLandingPage();
+        _ = InvokeAsync(StateHasChanged);
     }
 
     private void OnSessionChanged() => InvokeAsync(StateHasChanged);
@@ -54,10 +85,18 @@
         Nav.NavigateTo("");
     }
 
-    public void Dispose() => Session.Changed -= OnSessionChanged;
+    public void Dispose()
+    {
+        Session.Changed -= OnSessionChanged;
+        Nav.LocationChanged -= OnLocationChanged;
+    }
 }
 
 <style>
+    .landing-layout {
+        min-height: 100vh;
+    }
+
     .app-layout {
         display: flex;
         min-height: 100vh;
